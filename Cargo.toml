@@ -1,0 +1,23 @@
+[package]
+name = "dioxus-test"
+version = "0.1.0"
+authors = ["Bradford Hovinen"]
+edition = "2024"
+description = "Test library for Dioxus based on native renderer"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/DioxusLabs/dioxus-test/"
+homepage = "https://dioxuslabs.com/learn/0.7/getting_started"
+keywords = ["dom", "ui", "gui", "react", "testing"]
+
+[dependencies]
+blitz-dom = { version = "=0.3.0-alpha.4", default-features = false }
+dioxus-core = { version = "0.8.0-alpha.0", git = "https://github.com/hovinen/dioxus", branch = "add-synthetic-events-to-native-dom" }
+dioxus-html = { version = "0.8.0-alpha.0", git = "https://github.com/hovinen/dioxus", branch = "add-synthetic-events-to-native-dom" }
+dioxus-native-dom = { version = "0.8.0-alpha.0", git = "https://github.com/hovinen/dioxus", branch = "add-synthetic-events-to-native-dom" }
+test-that = { version = "0.5.2", default-features = false, features = ["regex", "num-traits"] }
+tokio = { version = "1.48", features = ["time"] }
+tracing = { version = "0.1.41" }
+
+[dev-dependencies]
+dioxus = { version = "0.8.0-alpha.0", git = "https://github.com/hovinen/dioxus", branch = "add-synthetic-events-to-native-dom" }
+tokio = { version = "1.48", features = ["rt", "macros"] }
