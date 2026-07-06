@@ -7,37 +7,15 @@ concurrency:
   cancel-in-progress: true
 jobs:
   check:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    name: Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
-      - uses: ealmloff/dioxus-ci/actions/setup-dioxus@main
-      - run: cargo check --workspace --all-features
-
+    uses: dioxuslabs/dioxus-ci/.github/workflows/check.yml@main
+    with:
+      apt-packages: libfontconfig1-dev
   test:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    name: Test Suite
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
-      - uses: ealmloff/dioxus-ci/actions/setup-dioxus@main
-        with:
-          components: rustfmt, clippy
-      - run: cargo test --workspace
-
+    uses: dioxuslabs/dioxus-ci/.github/workflows/test.yml@main
+    with:
+      apt-packages: libfontconfig1-dev
   clippy:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    name: Clippy
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y libfontconfig1-dev
-      - uses: ealmloff/dioxus-ci/actions/setup-dioxus@main
-        with:
-          components: rustfmt, clippy
-      - run: cargo clippy --workspace --all-features --all-targets --examples --tests -- -D warnings
-
+    uses: dioxuslabs/dioxus-ci/.github/workflows/clippy.yml@main
+    with:
+      apt-packages: libfontconfig1-dev
   fmt:    { uses: dioxuslabs/dioxus-ci/.github/workflows/fmt.yml@main }
