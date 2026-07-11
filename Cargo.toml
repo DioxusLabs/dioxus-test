@@ -10,14 +10,19 @@ homepage = "https://dioxuslabs.com/learn/0.7/getting_started"
 keywords = ["dom", "ui", "gui", "react", "testing"]
 
 [dependencies]
-blitz-dom = { version = "=0.3.0-alpha.4", default-features = false }
-dioxus-core = { version = "0.8.0-alpha.0", git = "https://github.com/hovinen/dioxus", branch = "add-synthetic-events-to-native-dom" }
-dioxus-html = { version = "0.8.0-alpha.0", git = "https://github.com/hovinen/dioxus", branch = "add-synthetic-events-to-native-dom" }
-dioxus-native-dom = { version = "0.8.0-alpha.0", git = "https://github.com/hovinen/dioxus", branch = "add-synthetic-events-to-native-dom" }
+blitz-dom = { version = "=0.3.0-beta.1", default-features = false }
+dioxus-core = { version = "0.8.0-alpha.0", git = "https://github.com/dioxuslabs/dioxus" }
+dioxus-html = { version = "0.8.0-alpha.0", git = "https://github.com/dioxuslabs/dioxus" }
+dioxus-native-dom = { version = "0.8.0-alpha.0", git = "https://github.com/dioxuslabs/dioxus" }
 test-that = { version = "0.5.2", default-features = false, features = ["regex", "num-traits"] }
 tokio = { version = "1.48", features = ["time"] }
 tracing = { version = "0.1.41" }
 
 [dev-dependencies]
-dioxus = { version = "0.8.0-alpha.0", git = "https://github.com/hovinen/dioxus", branch = "add-synthetic-events-to-native-dom" }
+dioxus = { version = "0.8.0-alpha.0", git = "https://github.com/dioxuslabs/dioxus.git" }
+indoc = "2.0.7"
 tokio = { version = "1.48", features = ["rt", "macros"] }
+
+[patch.crates-io]
+blitz-dom = { git = "https://github.com/dioxuslabs/blitz" }
+blitz-traits = { git = "https://github.com/dioxuslabs/blitz" }

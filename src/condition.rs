@@ -1,6 +1,6 @@
-use crate::{DocumentTester, TesterError, element::ResolvedElement};
+use crate::{DocumentTester, TesterError, element::ResolvedElement, result::ErrorBuilder};
 use blitz_dom::SelectorList;
-use std::{marker::PhantomData, ops::ControlFlow, pin::Pin};
+use std::{marker::PhantomData, ops::ControlFlow, pin::Pin, rc::Rc};
 use test_that::{matcher::MatcherResult, prelude::Matcher};
 
 /// The maximum number of attempts [DocumentTester] will make to find a given element or make a
@@ -164,16 +164,20 @@ trait Waitable: EventLoopDriver {
 pub struct ElementCondition<'vdom> {
     data: &'vdom DocumentTester,
     query: SelectorList,
-    error: TesterError,
+    error_builder: Rc<ErrorBuilder>,
 }
 
 impl<'vdom> ElementCondition<'vdom> {
     pub(crate) fn new(
         data: &'vdom DocumentTester,
         query: SelectorList,
-        error: TesterError,
+        error_builder: Rc<ErrorBuilder>,
     ) -> Self {
-        Self { data, query, error }
+        Self {
+            data,
+            query,
+            error_builder,
+        }
     }
 
     /// Simulates the user clicking on the element this instance represents.
@@ -380,7 +384,7 @@ impl<'vdom> ElementCondition<'vdom> {
     /// ```
     pub fn immediately(&'vdom self) -> Result<ResolvedElement<'vdom>, TesterError> {
         match self.check() {
-            ControlFlow::Continue(_) => Err(self.error.clone()),
+            ControlFlow::Continue(_) => Err((self.error_builder)(self.data.root().outer_html())),
             ControlFlow::Break(b) => Ok(self.data.build_resolved_element(b)),
         }
     }
@@ -404,7 +408,7 @@ impl<'vdom> Waitable for ElementCondition<'vdom> {
     }
 
     fn describe_failure(&self) -> TesterError {
-        self.error.clone()
+        (self.error_builder)(self.data.root().outer_html())
     }
 }
 
@@ -424,7 +428,9 @@ where
 
     fn explain_match_failure(&self, matcher: &M) -> String {
         match Waitable::check(self) {
-            ControlFlow::Continue(_) => self.error.to_string(),
+            ControlFlow::Continue(_) => {
+                (self.error_builder)(self.data.root().outer_html()).to_string()
+            }
             ControlFlow::Break(n) => matcher
                 .explain_match(&self.data.build_resolved_element(n))
                 .to_string(),

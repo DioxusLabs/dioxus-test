@@ -1,7 +1,7 @@
 use crate::{
     condition::{AllElementsCondition, ElementCondition},
     element::{NodeId, ResolvedElement},
-    result::TesterError,
+    result::{ErrorBuilder, TesterError},
 };
 use blitz_dom::{Document as _, SelectorList};
 use dioxus_core::{Element, VirtualDom};
@@ -222,7 +222,7 @@ impl DocumentTester {
     /// Panics if the query contains a syntactically invalid CSS selector.
     pub fn query(&self, query: impl TryIntoSelector) -> ElementCondition<'_> {
         let document = self.document.borrow_mut();
-        let error = query.to_tester_error();
+        let error = query.to_error_builder();
         let selector = query
             .try_into_selector(&document)
             .expect("Invalid CSS selector");
@@ -266,7 +266,7 @@ impl DocumentTester {
 pub trait TryIntoSelector {
     fn try_into_selector(self, document: &DioxusDocument) -> Result<SelectorList, TesterError>;
 
-    fn to_tester_error(&self) -> TesterError;
+    fn to_error_builder(&self) -> Rc<ErrorBuilder>;
 }
 
 impl<T: AsRef<str>> TryIntoSelector for T {
@@ -279,8 +279,9 @@ impl<T: AsRef<str>> TryIntoSelector for T {
             })
     }
 
-    fn to_tester_error(&self) -> TesterError {
-        TesterError::NoSuchElementWithCssSelector(self.as_ref().into())
+    fn to_error_builder(&self) -> Rc<ErrorBuilder> {
+        let selector: String = self.as_ref().into();
+        Rc::new(move |dom| TesterError::NoSuchElementWithCssSelector(selector.clone(), dom))
     }
 }
 
@@ -294,8 +295,9 @@ impl TryIntoSelector for QueryByTestId {
             .expect("Selector with testid should always parse"))
     }
 
-    fn to_tester_error(&self) -> TesterError {
-        TesterError::NoSuchElementWithTestId(self.0.clone())
+    fn to_error_builder(&self) -> Rc<ErrorBuilder> {
+        let testid = self.0.clone();
+        Rc::new(move |dom| TesterError::NoSuchElementWithTestId(testid.clone(), dom))
     }
 }
 
@@ -331,12 +333,10 @@ pub fn by_testid(testid: impl AsRef<str>) -> impl TryIntoSelector {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        by_testid,
-        matchers::{eq, inner_html},
-        render,
-    };
+    use crate::{by_testid, matchers::inner_html, render};
     use dioxus::prelude::*;
+    use indoc::indoc;
+    use test_that::prelude::*;
 
     #[tokio::test]
     async fn document_allows_multiple_unresolved_queries_in_parallel() {
@@ -369,5 +369,114 @@ mod tests {
             .expect(inner_html(eq("Now clicked")))
             .immediately()
             .unwrap();
+    }
+
+    #[test]
+    fn assertion_failure_message_includes_dom_when_no_element_matches_css_query() -> TestResult<()>
+    {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class"
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(".different-class")
+            .expect(anything())
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                Failed assertion: No such element with CSS selector `.different-class`
+                DOM is:
+                <html>
+                  <head />
+                  <body>
+                    <main id="main">
+                      <div class="arbitrary-class" />
+                    </main>
+                  </body>
+                </html>
+                "#
+            ))))
+        )
+    }
+
+    #[test]
+    fn assertion_failure_message_includes_dom_when_no_element_has_testid() -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    "data-testid": "Arbitrary testid"
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(by_testid("Different testid"))
+            .expect(anything())
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                Failed assertion: No such element with test ID `Different testid`
+                DOM is:
+                <html>
+                  <head />
+                  <body>
+                    <main id="main">
+                      <div data-testid="Arbitrary testid" />
+                    </main>
+                  </body>
+                </html>
+                "#
+            ))))
+        )
+    }
+
+    #[tokio::test]
+    async fn assertion_failure_message_includes_dom_when_element_was_awaited() -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    "data-testid": "Arbitrary testid"
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(by_testid("Different testid"))
+            .expect(anything())
+            .await;
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                Failed assertion: No such element with test ID `Different testid`
+                DOM is:
+                <html>
+                  <head />
+                  <body>
+                    <main id="main">
+                      <div data-testid="Arbitrary testid" />
+                    </main>
+                  </body>
+                </html>
+                "#
+            ))))
+        )
     }
 }

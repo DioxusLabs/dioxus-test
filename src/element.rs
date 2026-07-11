@@ -63,7 +63,9 @@ impl<'doc> ResolvedElement<'doc> {
 
     /// Returns a `String` consisting of the HTML of this element and all of its children.
     pub fn outer_html(&self) -> String {
-        self.node_id.resolve(&self.guard.inner()).outer_html()
+        self.node_id
+            .resolve(&self.guard.inner())
+            .outer_html_pretty()
     }
 
     /// Returns a `String` consisting of the HTML of this element's children, not including this
