@@ -1,7 +1,7 @@
 use crate::{
     condition::{AllElementsCondition, ElementCondition},
     element::{NodeId, ResolvedElement},
-    result::TesterError,
+    result::{ErrorBuilder, TesterError},
 };
 use blitz_dom::{Document as _, SelectorList};
 use dioxus_core::{Element, VirtualDom};
@@ -222,7 +222,7 @@ impl DocumentTester {
     /// Panics if the query contains a syntactically invalid CSS selector.
     pub fn query(&self, query: impl TryIntoSelector) -> ElementCondition<'_> {
         let document = self.document.borrow_mut();
-        let error = query.to_tester_error();
+        let error = query.to_error_builder();
         let selector = query
             .try_into_selector(&document)
             .expect("Invalid CSS selector");
@@ -266,7 +266,7 @@ impl DocumentTester {
 pub trait TryIntoSelector {
     fn try_into_selector(self, document: &DioxusDocument) -> Result<SelectorList, TesterError>;
 
-    fn to_tester_error(&self) -> TesterError;
+    fn to_error_builder(&self) -> Rc<ErrorBuilder>;
 }
 
 impl<T: AsRef<str>> TryIntoSelector for T {
@@ -279,8 +279,9 @@ impl<T: AsRef<str>> TryIntoSelector for T {
             })
     }
 
-    fn to_tester_error(&self) -> TesterError {
-        TesterError::NoSuchElementWithCssSelector(self.as_ref().into())
+    fn to_error_builder(&self) -> Rc<ErrorBuilder> {
+        let selector: String = self.as_ref().into();
+        Rc::new(move |dom| TesterError::NoSuchElementWithCssSelector(selector.clone(), dom))
     }
 }
 
@@ -294,8 +295,9 @@ impl TryIntoSelector for QueryByTestId {
             .expect("Selector with testid should always parse"))
     }
 
-    fn to_tester_error(&self) -> TesterError {
-        TesterError::NoSuchElementWithTestId(self.0.clone())
+    fn to_error_builder(&self) -> Rc<ErrorBuilder> {
+        let testid = self.0.clone();
+        Rc::new(move |dom| TesterError::NoSuchElementWithTestId(testid.clone(), dom))
     }
 }
 
