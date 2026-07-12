@@ -1,4 +1,7 @@
-use crate::{DocumentTester, TesterError, element::ResolvedElement, result::ErrorBuilder};
+use crate::{
+    DocumentTester, TesterError, document::TryIntoSelector, element::ResolvedElement,
+    result::ErrorBuilder,
+};
 use blitz_dom::SelectorList;
 use std::{marker::PhantomData, ops::ControlFlow, pin::Pin, rc::Rc};
 use test_that::{description::Description, matcher::MatcherResult, prelude::Matcher};
@@ -389,6 +392,13 @@ impl<'vdom> ElementCondition<'vdom> {
             ControlFlow::Continue(_) => Err((self.error_builder)(self.data.root().outer_html())),
             ControlFlow::Break(b) => Ok(self.data.build_resolved_element(b)),
         }
+    }
+
+    pub fn query(&self, query: impl TryIntoSelector) -> ElementCondition<'_> {
+        let error = query.to_error_builder();
+        let selector = self.data.create_selector(query);
+        selector.replace_parent_selector(&self.selector);
+        ElementCondition::new(self.data, selector, error)
     }
 }
 
