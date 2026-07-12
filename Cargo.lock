@@ -107,7 +107,7 @@ dependencies = [
 [[package]]
 name = "blitz-dom"
 version = "0.3.0-beta.1"
-source = "git+https://github.com/dioxuslabs/blitz#12c9d2a7083908738e68a0799e354caf2eaf51ea"
+source = "git+https://github.com/hovinen/blitz?branch=fix-pretty-print-of-text-nodes#b30c49c4c1d8ad21abd3e3792df55a7bbf810c8b"
 dependencies = [
  "accesskit",
  "anyrender",
@@ -149,7 +149,7 @@ dependencies = [
 [[package]]
 name = "blitz-traits"
 version = "0.3.0-beta.1"
-source = "git+https://github.com/dioxuslabs/blitz#12c9d2a7083908738e68a0799e354caf2eaf51ea"
+source = "git+https://github.com/hovinen/blitz?branch=fix-pretty-print-of-text-nodes#b30c49c4c1d8ad21abd3e3792df55a7bbf810c8b"
 dependencies = [
  "atomic_refcell",
  "bitflags",
@@ -496,7 +496,7 @@ checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
 [[package]]
 name = "debug_timer"
 version = "0.1.3"
-source = "git+https://github.com/dioxuslabs/blitz#12c9d2a7083908738e68a0799e354caf2eaf51ea"
+source = "git+https://github.com/hovinen/blitz?branch=fix-pretty-print-of-text-nodes#b30c49c4c1d8ad21abd3e3792df55a7bbf810c8b"
 
 [[package]]
 name = "derive_more"
@@ -2752,7 +2752,7 @@ dependencies = [
 [[package]]
 name = "stylo_taffy"
 version = "0.3.0-beta.1"
-source = "git+https://github.com/dioxuslabs/blitz#12c9d2a7083908738e68a0799e354caf2eaf51ea"
+source = "git+https://github.com/hovinen/blitz?branch=fix-pretty-print-of-text-nodes#b30c49c4c1d8ad21abd3e3792df55a7bbf810c8b"
 dependencies = [
  "stylo",
  "stylo_atoms",

@@ -374,7 +374,8 @@ mod tests {
                   is equal to "Expected value"
                 But was:
                   <div data-testid="the-label">
-                  Actual value</div>
+                    Actual value
+                  </div>
                 which has inner HTML which
                   isn't equal to "Expected value""#
             ))))
@@ -409,7 +410,8 @@ mod tests {
                 But was:
                 [
                   <div data-testid="the-label">
-                  Actual value 1</div>
+                    Actual value 1
+                  </div>
                 ]
                 which isn't empty"#
             ))))
