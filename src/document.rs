@@ -645,4 +645,111 @@ mod tests {
             ))))
         )
     }
+
+    #[tokio::test]
+    async fn dom_displayed_in_test_failure_message_starts_from_node_of_innermost_matching_query_when_requesting_resolved_element_directly()
+    -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    div {
+                        "data-testid": "Arbitrary testid"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(".arbitrary-class")
+            .query(by_testid("Different testid"))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                No such element with test ID `Different testid`
+                DOM is:
+                <div class="arbitrary-class">
+                  <div data-testid="Arbitrary testid" />
+                </div>
+                "#
+            ))))
+        )
+    }
+
+    #[tokio::test]
+    async fn dom_displayed_in_test_failure_message_starts_from_node_of_innermost_matching_query_when_interacting_with_element()
+    -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    div {
+                        "data-testid": "Arbitrary testid"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(".arbitrary-class")
+            .query(by_testid("Different testid"))
+            .click()
+            .await;
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                No such element with test ID `Different testid`
+                DOM is:
+                <div class="arbitrary-class">
+                  <div data-testid="Arbitrary testid" />
+                </div>
+                "#
+            ))))
+        )
+    }
+
+    #[tokio::test]
+    async fn dom_displayed_in_test_failure_message_starts_from_node_of_innermost_matching_query_in_async_mode()
+    -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    div {
+                        "data-testid": "Arbitrary testid"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(".arbitrary-class")
+            .query(by_testid("Different testid"))
+            .expect(anything())
+            .await;
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                No such element with test ID `Different testid`
+                DOM is:
+                <div class="arbitrary-class">
+                  <div data-testid="Arbitrary testid" />
+                </div>
+                "#
+            ))))
+        )
+    }
 }
