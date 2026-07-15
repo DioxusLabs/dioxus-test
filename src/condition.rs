@@ -348,7 +348,7 @@ impl<'vdom> ElementCondition<'vdom> {
     /// > ```
     pub fn expect<M>(&self, matcher: M) -> MatcherCondition<'vdom, M, ElementCondition<'vdom>>
     where
-        M: for<'a> Matcher<ResolvedElement<'a>>,
+        M: Matcher<ResolvedElement>,
     {
         MatcherCondition {
             element: self.clone(),
@@ -382,7 +382,7 @@ impl<'vdom> ElementCondition<'vdom> {
     /// # }
     /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test()).unwrap();
     /// ```
-    pub fn immediately(&'vdom self) -> Result<ResolvedElement<'vdom>, TesterError> {
+    pub fn immediately(&self) -> Result<ResolvedElement, TesterError> {
         match self.check() {
             ControlFlow::Continue(_) => Err((self.error_builder)(self.data.root().outer_html())),
             ControlFlow::Break(b) => Ok(self.data.build_resolved_element(b)),
@@ -414,7 +414,7 @@ impl<'vdom> Waitable for ElementCondition<'vdom> {
 
 impl<'vdom, M> Matchable<M> for ElementCondition<'vdom>
 where
-    M: for<'a> Matcher<ResolvedElement<'a>>,
+    M: Matcher<ResolvedElement>,
 {
     fn matches(&self, matcher: &M) -> ControlFlow<()> {
         match Waitable::check(self) {
@@ -439,7 +439,7 @@ where
 }
 
 impl<'vdom> IntoFuture for ElementCondition<'vdom> {
-    type Output = Result<ResolvedElement<'vdom>, TesterError>;
+    type Output = Result<ResolvedElement, TesterError>;
     type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + 'vdom>>;
 
     fn into_future(mut self) -> Self::IntoFuture {
@@ -590,7 +590,7 @@ impl<'vdom> AllElementsCondition<'vdom> {
     /// > expectation: The test may spuriously pass despite the implementation being wrong.
     pub fn expect<M>(&self, matcher: M) -> MatcherCondition<'vdom, M, AllElementsCondition<'vdom>>
     where
-        M: for<'a> Matcher<Vec<ResolvedElement<'a>>>,
+        M: Matcher<Vec<ResolvedElement>>,
     {
         MatcherCondition {
             element: self.clone(),
@@ -599,7 +599,7 @@ impl<'vdom> AllElementsCondition<'vdom> {
         }
     }
 
-    pub fn immediately(&'vdom self) -> Vec<ResolvedElement<'vdom>> {
+    pub fn immediately(&self) -> Vec<ResolvedElement> {
         let node_ids = self.data.get_elements(&self.query);
         node_ids
             .into_iter()
@@ -616,7 +616,7 @@ impl<'vdom> EventLoopDriver for AllElementsCondition<'vdom> {
 
 impl<'vdom, M> Matchable<M> for AllElementsCondition<'vdom>
 where
-    M: for<'a> Matcher<Vec<ResolvedElement<'a>>>,
+    M: Matcher<Vec<ResolvedElement>>,
 {
     fn matches(&self, matcher: &M) -> ControlFlow<()> {
         match matcher.matches(&self.immediately()) {
