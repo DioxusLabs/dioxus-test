@@ -303,7 +303,7 @@ impl TryIntoSelector for QueryByTestId {
 
 impl std::fmt::Display for QueryByTestId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "data-testid={}", self.0)
+        write!(f, r#"[data-testid="{}"]"#, self.0)
     }
 }
 
@@ -388,7 +388,7 @@ mod tests {
             result,
             err(displays_as(eq(indoc!(
                 r#"
-                Element: data-testid=the-label
+                Element: [data-testid="the-label"]
                 Expected: has inner HTML which
                   is equal to "Expected value"
                 But was:
@@ -424,7 +424,7 @@ mod tests {
             result,
             err(displays_as(eq(indoc!(
                 r#"
-                Element: data-testid=the-label
+                Element: [data-testid="the-label"]
                 Expected: is empty
                 But was:
                 [
