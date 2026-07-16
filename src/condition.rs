@@ -494,7 +494,15 @@ where
 
     fn explain_match_failure(&self, matcher: &M) -> TesterError {
         match Waitable::check(self) {
-            ControlFlow::Continue(_) => (self.error_builder)(self.rendered_parent_dom()),
+            ControlFlow::Continue(_) => {
+                if let Some(parent) = self.parent
+                    && matches!(Waitable::check(parent), ControlFlow::Continue(_))
+                {
+                    parent.explain_match_failure(matcher)
+                } else {
+                    (self.error_builder)(self.rendered_parent_dom())
+                }
+            }
             ControlFlow::Break(n) => {
                 let resolved = self.data.build_resolved_element(n);
                 TesterError::AssertionFailure {

@@ -752,4 +752,45 @@ mod tests {
             ))))
         )
     }
+
+    #[test]
+    fn assertion_failure_when_outer_node_not_matched_references_outer_node() -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    div {
+                        "data-testid": "Arbitrary testid"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(".different-class")
+            .query(by_testid("Arbitrary testid"))
+            .expect(anything())
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                No such element with CSS selector `.different-class`
+                DOM is:
+                <html>
+                  <head />
+                  <body>
+                    <main id="main">
+                      <div class="arbitrary-class">
+                        <div data-testid="Arbitrary testid" />
+                      </div>
+                    </main>
+                  </body>
+                "#
+            ))))
+        )
+    }
 }
