@@ -8,13 +8,11 @@ use test_that::{
 
 /// Returns a [Matcher] which matches an element whose inner HTML is matched by the [Matcher]
 /// `inner`.
-pub fn inner_html(inner: impl Matcher<String>) -> impl for<'vdom> Matcher<ResolvedElement<'vdom>> {
+pub fn inner_html(inner: impl Matcher<String>) -> impl Matcher<ResolvedElement> {
     struct InnerHtmlMatcher<InnerMatcher>(InnerMatcher);
 
-    impl<'vdom, InnerMatcher: Matcher<String>> Matcher<ResolvedElement<'vdom>>
-        for InnerHtmlMatcher<InnerMatcher>
-    {
-        fn matches(&self, actual: &ResolvedElement<'vdom>) -> MatcherResult {
+    impl<InnerMatcher: Matcher<String>> Matcher<ResolvedElement> for InnerHtmlMatcher<InnerMatcher> {
+        fn matches(&self, actual: &ResolvedElement) -> MatcherResult {
             let inner_html = actual.inner_html();
             self.0.matches(&inner_html)
         }
@@ -78,13 +76,13 @@ pub fn inner_html(inner: impl Matcher<String>) -> impl for<'vdom> Matcher<Resolv
 pub fn attribute(
     name: impl AsRef<str>,
     inner: impl Matcher<Option<String>>,
-) -> impl for<'vdom> Matcher<ResolvedElement<'vdom>> {
+) -> impl Matcher<ResolvedElement> {
     struct AttributeMatcher<InnerMatcher>(String, InnerMatcher);
 
-    impl<'vdom, InnerMatcher: Matcher<Option<String>>> Matcher<ResolvedElement<'vdom>>
+    impl<InnerMatcher: Matcher<Option<String>>> Matcher<ResolvedElement>
         for AttributeMatcher<InnerMatcher>
     {
-        fn matches(&self, actual: &ResolvedElement<'vdom>) -> MatcherResult {
+        fn matches(&self, actual: &ResolvedElement) -> MatcherResult {
             let attribute_content = actual.attribute(&self.0);
             self.1.matches(&attribute_content)
         }

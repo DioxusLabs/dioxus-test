@@ -5,18 +5,18 @@ use dioxus_html::{
     geometry::{Coordinates, euclid::Point2D},
 };
 use dioxus_native_dom::{DioxusDocument, synthetic_click_event};
-use std::{cell::RefMut, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 /// A reference to DOM node managed by a [crate::DocumentTester].
 ///
 /// This provides facilities for interacting with the node, querying its layout properties, and
 /// obtaining its content.
-pub struct ResolvedElement<'doc> {
-    pub(crate) guard: RefMut<'doc, DioxusDocument>,
+pub struct ResolvedElement {
+    pub(crate) document: Rc<RefCell<DioxusDocument>>,
     pub(crate) node_id: NodeId,
 }
 
-impl<'doc> ResolvedElement<'doc> {
+impl ResolvedElement {
     /// Dispatches a `click` event on this element.
     ///
     /// The exact location of the click is unspecified.
@@ -24,16 +24,16 @@ impl<'doc> ResolvedElement<'doc> {
     /// If the element has an `onclick` handler, it will be invoked once
     /// [crate::DocumentTester::pump] is called.
     pub fn click(&self) {
-        self.send_event(
-            "click",
-            Event::new(
-                Rc::new(PlatformEventData::new(synthetic_click_event(
-                    self.node_id.resolve(&self.guard.inner()),
-                    Modifiers::empty(),
-                ))),
-                true,
-            ),
+        let guard = self.document.borrow();
+        let event = Event::new(
+            Rc::new(PlatformEventData::new(synthetic_click_event(
+                self.node_id.resolve(&guard.inner()),
+                Modifiers::empty(),
+            ))),
+            true,
         );
+        drop(guard);
+        self.send_event("click", event);
     }
 
     /// Sends an event with the given `name` to this element.
@@ -53,31 +53,33 @@ impl<'doc> ResolvedElement<'doc> {
     /// specific event type. This method panics if the event payload has the wrong type.
     pub fn send_event(&self, name: &str, event: Event<PlatformEventData>) {
         let propagates = event.propagates();
-        self.guard.vdom.runtime().handle_event(
+        let element_id = self
+            .get_element_id()
+            .expect("Expected element to have a Dioxus ID");
+        self.document.borrow_mut().vdom.runtime().handle_event(
             name,
             Event::new(event.data, propagates),
-            self.get_element_id()
-                .expect("Expected element to have a Dioxus ID"),
+            element_id,
         );
     }
 
     /// Returns a `String` consisting of the HTML of this element and all of its children.
     pub fn outer_html(&self) -> String {
-        self.node_id
-            .resolve(&self.guard.inner())
-            .outer_html_pretty()
+        let guard = self.document.borrow();
+        self.node_id.resolve(&guard.inner()).outer_html_pretty()
     }
 
     /// Returns a `String` consisting of the HTML of this element's children, not including this
     /// element itself.
     pub fn inner_html(&self) -> String {
+        let guard = self.document.borrow();
         let inner_html_parts: Vec<_> = self
             .node_id
-            .resolve(&self.guard.inner())
+            .resolve(&guard.inner())
             .children
             .iter()
             .filter_map(|child_id| {
-                self.guard
+                guard
                     .inner()
                     .get_node(*child_id)
                     .map(|child| child.outer_html())
@@ -100,7 +102,8 @@ impl<'doc> ResolvedElement<'doc> {
 
     /// Returns the calculated [Coordinates] of the upper-left corner of this element.
     pub fn upper_left(&self) -> Coordinates {
-        let document = self.guard.inner();
+        let guard = self.document.borrow();
+        let document = guard.inner();
         let node = self.node_id.resolve(&document);
         let upper_left = Point {
             x: node.final_layout.location.x,
@@ -116,7 +119,8 @@ impl<'doc> ResolvedElement<'doc> {
 
     /// Returns the calculated [Coordinates] of the upper-right corner of this element.
     pub fn upper_right(&self) -> Coordinates {
-        let document = self.guard.inner();
+        let guard = self.document.borrow();
+        let document = guard.inner();
         let node = self.node_id.resolve(&document);
         let mut upper_right = Point {
             x: node.final_layout.location.x,
@@ -133,7 +137,8 @@ impl<'doc> ResolvedElement<'doc> {
 
     /// Returns the calculated [Coordinates] of the lower-left corner of this element.
     pub fn lower_left(&self) -> Coordinates {
-        let document = self.guard.inner();
+        let guard = self.document.borrow();
+        let document = guard.inner();
         let node = self.node_id.resolve(&document);
         let mut lower_left = Point {
             x: node.final_layout.location.x,
@@ -150,7 +155,8 @@ impl<'doc> ResolvedElement<'doc> {
 
     /// Returns the calculated [Coordinates] of the lower-right corner of this element.
     pub fn lower_right(&self) -> Coordinates {
-        let document = self.guard.inner();
+        let guard = self.document.borrow();
+        let document = guard.inner();
         let node = self.node_id.resolve(&document);
         let mut lower_right = Point {
             x: node.final_layout.location.x,
@@ -172,7 +178,8 @@ impl<'doc> ResolvedElement<'doc> {
 
     /// Returns the calculated size of this element as a tuple (width, height) in screen pixels.
     pub fn size(&self) -> (f32, f32) {
-        let document = self.guard.inner();
+        let guard = self.document.borrow();
+        let document = guard.inner();
         let node = self.node_id.resolve(&document);
         let height = node.final_layout.content_box_height();
         let width = node.final_layout.content_box_width();
@@ -180,8 +187,9 @@ impl<'doc> ResolvedElement<'doc> {
     }
 
     fn get_element_id(&self) -> Option<ElementId> {
+        let guard = self.document.borrow();
         self.node_id
-            .resolve(&self.guard.inner())
+            .resolve(&guard.inner())
             .element_data()?
             .attrs
             .iter()
@@ -191,8 +199,9 @@ impl<'doc> ResolvedElement<'doc> {
     }
 
     pub(crate) fn attribute(&self, arg: &str) -> Option<String> {
+        let guard = self.document.borrow();
         self.node_id
-            .resolve(&self.guard.inner())
+            .resolve(&guard.inner())
             .element_data()?
             .attrs
             .iter()
@@ -201,7 +210,7 @@ impl<'doc> ResolvedElement<'doc> {
     }
 }
 
-impl<'doc> std::fmt::Debug for ResolvedElement<'doc> {
+impl std::fmt::Debug for ResolvedElement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ResolvedElement")
             .field("node_id", &self.node_id)

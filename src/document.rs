@@ -150,10 +150,9 @@ impl DocumentTester {
     /// This allows interacting with and asserting on the root element. However, there is no support
     /// for awaiting expectations. If the test must await an expectation on the root element use
     /// [Self::query] with the CSS selector `:root`.
-    pub fn root<'vdom>(&'vdom self) -> ResolvedElement<'vdom> {
-        let guard = self.document.borrow_mut();
+    pub fn root(&self) -> ResolvedElement {
         ResolvedElement {
-            guard,
+            document: self.document.clone(),
             node_id: NodeId::Root,
         }
     }
@@ -250,10 +249,9 @@ impl DocumentTester {
         AllElementsCondition::new(self, rendered_query, selector)
     }
 
-    pub(crate) fn build_resolved_element(&self, id: usize) -> ResolvedElement<'_> {
-        let guard = self.document.borrow_mut();
+    pub(crate) fn build_resolved_element(&self, id: usize) -> ResolvedElement {
         ResolvedElement {
-            guard,
+            document: self.document.clone(),
             node_id: NodeId::Node(id),
         }
     }
@@ -341,10 +339,31 @@ pub fn by_testid(testid: impl AsRef<str>) -> impl TryIntoSelector {
 
 #[cfg(test)]
 mod tests {
-    use crate::{by_testid, matchers::inner_html, render};
+    use crate::{Result, by_testid, matchers::inner_html, render};
     use dioxus::prelude::*;
     use indoc::indoc;
     use test_that::prelude::*;
+
+    #[tokio::test]
+    async fn query_all_allows_matching_multiple_elements() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                     class: "some-class",
+                }
+                div {
+                     class: "some-class",
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query_all(".some-class")
+            .expect(len(eq(2)))
+            .immediately()
+    }
 
     #[tokio::test]
     async fn assertion_failure_message_includes_query_actual_value_description_and_explanation()
