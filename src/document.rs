@@ -636,7 +636,7 @@ mod tests {
             result,
             err(displays_as(contains_substring(indoc!(
                 r#"
-                Failed assertion: No such element with test ID `Different testid`
+                No such element with test ID `Different testid`
                 DOM is:
                 <div class="arbitrary-class">
                   <div data-testid="Arbitrary testid" />
