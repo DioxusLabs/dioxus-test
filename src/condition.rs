@@ -397,6 +397,41 @@ impl<'vdom> ElementCondition<'vdom> {
         }
     }
 
+    /// Queries an element contained within the element matching this instance.
+    ///
+    /// The query is scoped to elements strictly contained inside the element to which this instance
+    /// resolves. Elements not contained therein are not matched.
+    ///
+    /// ```rust
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{by_testid, render, matchers::{eq, inner_html}};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         div {
+    ///             class: "some-class",
+    ///             "Incorrect content"
+    ///         }
+    ///         div {
+    ///             "data-testid": "some-testid",
+    ///             div {
+    ///                 class: "some-class",
+    ///                 "Correct content"
+    ///             }
+    ///         }
+    ///     }
+    /// }
+    /// let tester = render(MyComponent).build();
+    ///
+    /// tester
+    ///     .query(by_testid("some-testid"))
+    ///     .query(".some-class")
+    ///     .expect(inner_html(eq("Correct content")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// ```
+    ///
+    /// This can be used to narrow down problems with CSS selectors on larger, more complex DOMs.
     pub fn query(&'vdom self, query: impl TryIntoSelector) -> ElementCondition<'vdom> {
         let error_builder = query.to_error_builder();
         let rendered_query = format!("{} {query}", self.query);
