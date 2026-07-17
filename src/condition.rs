@@ -391,7 +391,7 @@ impl<'vdom> ElementCondition<'vdom> {
     /// ```
     pub fn immediately(&self) -> Result<ResolvedElement, TesterError> {
         match self.check() {
-            ControlFlow::Continue(_) => Err((self.error_builder)(self.rendered_parent_dom())),
+            ControlFlow::Continue(_) => Err(self.describe_failure()),
             ControlFlow::Break(b) => Ok(self.data.build_resolved_element(b)),
         }
     }
@@ -473,7 +473,13 @@ impl<'vdom> Waitable for ElementCondition<'vdom> {
     }
 
     fn describe_failure(&self) -> TesterError {
-        (self.error_builder)(self.rendered_parent_dom())
+        if let Some(parent) = self.parent
+            && matches!(Waitable::check(parent), ControlFlow::Continue(_))
+        {
+            parent.describe_failure()
+        } else {
+            (self.error_builder)(self.rendered_parent_dom())
+        }
     }
 }
 
