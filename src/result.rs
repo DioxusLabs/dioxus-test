@@ -2,8 +2,6 @@ use test_that::description::Description;
 
 pub type Result<T> = std::result::Result<T, TesterError>;
 
-pub(crate) type ErrorBuilder = dyn Fn(String) -> TesterError;
-
 /// An error during resolution of a DOM element or making an assertion.
 ///
 /// This normally indicates that the test should fail.
@@ -15,6 +13,9 @@ pub enum TesterError {
     /// No element with the test ID, as given by the HTML attribute `data-testid`, was found in the
     /// DOM.
     NoSuchElementWithTestId(String, String),
+
+    /// No element with the given role was found in the DOM.
+    NoSuchElementWithRole(String, String),
 
     /// No element matching the given CSS selector was found in the DOM.
     NoSuchElementWithCssSelector(String, String),
@@ -39,6 +40,9 @@ impl std::fmt::Display for TesterError {
             }
             TesterError::NoSuchElementWithTestId(id, dom) => {
                 write!(f, "No such element with test ID `{id}`\nDOM is:\n{dom}")
+            }
+            TesterError::NoSuchElementWithRole(role, dom) => {
+                write!(f, "No such element with role `{role}`\nDOM is:\n{dom}")
             }
             TesterError::NoSuchElementWithCssSelector(selector, dom) => {
                 write!(

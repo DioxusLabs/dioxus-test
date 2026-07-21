@@ -1,9 +1,9 @@
 use crate::{
-    DocumentTester, TesterError, document::TryIntoSelector, element::ResolvedElement,
-    result::ErrorBuilder,
+    DocumentTester, TesterError,
+    element::ResolvedElement,
+    query::{CloneableQuery, IntoQuery, ParentableQuery, Query},
 };
-use blitz_dom::SelectorList;
-use std::{marker::PhantomData, ops::ControlFlow, pin::Pin, rc::Rc};
+use std::{marker::PhantomData, ops::ControlFlow, pin::Pin};
 use test_that::{description::Description, matcher::MatcherResult, prelude::Matcher};
 
 /// The maximum number of attempts [DocumentTester] will make to find a given element or make a
@@ -11,11 +11,11 @@ use test_that::{description::Description, matcher::MatcherResult, prelude::Match
 // TODO: Make this configurable.
 pub const MAX_TRIES: usize = 5;
 
-trait EventLoopDriver {
+pub trait EventLoopDriver {
     fn pump(&mut self) -> impl Future<Output = ()>;
 }
 
-trait Waitable: EventLoopDriver {
+pub trait Waitable: EventLoopDriver {
     type Output;
     fn check(&self) -> ControlFlow<Self::Output>;
     fn describe_failure(&self) -> TesterError;
@@ -163,29 +163,23 @@ trait Waitable: EventLoopDriver {
 /// }
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(should_fail()).err().unwrap();
 /// ```
-#[derive(Clone)]
-pub struct ElementCondition<'vdom> {
+pub struct ElementCondition<'vdom, Q> {
     data: &'vdom DocumentTester,
-    query: String,
-    selector: SelectorList,
-    error_builder: Rc<ErrorBuilder>,
-    parent: Option<&'vdom ElementCondition<'vdom>>,
+    query: Q,
 }
 
-impl<'vdom> ElementCondition<'vdom> {
-    pub(crate) fn new(
-        data: &'vdom DocumentTester,
-        query: String,
-        selector: SelectorList,
-        error_builder: Rc<ErrorBuilder>,
-    ) -> Self {
+impl<'vdom, Q: Clone> Clone for ElementCondition<'vdom, Q> {
+    fn clone(&self) -> Self {
         Self {
-            data,
-            query,
-            selector,
-            error_builder,
-            parent: None,
+            data: self.data,
+            query: self.query.clone(),
         }
+    }
+}
+
+impl<'vdom, Q: CloneableQuery + 'vdom> ElementCondition<'vdom, Q> {
+    pub(crate) fn new(data: &'vdom DocumentTester, query: Q) -> Self {
+        Self { data, query }
     }
 
     /// Simulates the user clicking on the element this instance represents.
@@ -198,7 +192,10 @@ impl<'vdom> ElementCondition<'vdom> {
     }
 
     /// Synonym for [ElementCondition::click].
-    pub async fn tap(&self) -> Result<(), TesterError> {
+    pub async fn tap(&self) -> Result<(), TesterError>
+    where
+        Q: Clone,
+    {
         self.click().await?;
         Ok(())
     }
@@ -353,7 +350,7 @@ impl<'vdom> ElementCondition<'vdom> {
     /// > }
     /// > # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(my_component_does_not_change_label_on_click());
     /// > ```
-    pub fn expect<M>(&self, matcher: M) -> MatcherCondition<'vdom, M, ElementCondition<'vdom>>
+    pub fn expect<M>(&self, matcher: M) -> MatcherCondition<'vdom, M, Self>
     where
         M: Matcher<ResolvedElement>,
     {
@@ -431,41 +428,29 @@ impl<'vdom> ElementCondition<'vdom> {
     /// ```
     ///
     /// This can be used to narrow down problems with CSS selectors on larger, more complex DOMs.
-    pub fn query(&'vdom self, query: impl TryIntoSelector) -> ElementCondition<'vdom> {
-        let error_builder = query.to_error_builder();
-        let rendered_query = format!("{} {query}", self.query);
-        let selector = self.data.create_selector(&rendered_query);
-        Self {
+    pub fn query(
+        &'vdom self,
+        query: impl IntoQuery,
+    ) -> ElementCondition<'vdom, impl CloneableQuery> {
+        let query = query.into_query().with_parent(&self.query);
+        ElementCondition {
             data: self.data,
-            query: rendered_query,
-            selector,
-            error_builder,
-            parent: Some(self),
-        }
-    }
-
-    fn rendered_parent_dom(&self) -> String {
-        match self.parent {
-            Some(c) => match c.immediately() {
-                Ok(element) => element.outer_html(),
-                Err(_) => c.rendered_parent_dom(),
-            },
-            None => self.data.root().outer_html(),
+            query,
         }
     }
 }
 
-impl<'vdom> EventLoopDriver for ElementCondition<'vdom> {
+impl<'vdom, Q: Query> EventLoopDriver for ElementCondition<'vdom, Q> {
     async fn pump(&mut self) {
         let _ = self.data.pump().await;
     }
 }
 
-impl<'vdom> Waitable for ElementCondition<'vdom> {
+impl<'vdom, Q: Query> Waitable for ElementCondition<'vdom, Q> {
     type Output = usize;
 
     fn check(&self) -> ControlFlow<Self::Output> {
-        if let Some(element) = self.data.get_element(&self.selector) {
+        if let Some(element) = self.query.get_first_element(&self.data.document()) {
             ControlFlow::Break(element)
         } else {
             ControlFlow::Continue(())
@@ -473,17 +458,11 @@ impl<'vdom> Waitable for ElementCondition<'vdom> {
     }
 
     fn describe_failure(&self) -> TesterError {
-        if let Some(parent) = self.parent
-            && matches!(Waitable::check(parent), ControlFlow::Continue(_))
-        {
-            parent.describe_failure()
-        } else {
-            (self.error_builder)(self.rendered_parent_dom())
-        }
+        self.query.describe_failure(&self.data.document())
     }
 }
 
-impl<'vdom, M> Matchable<M> for ElementCondition<'vdom>
+impl<'vdom, Q: Query, M> Matchable<M> for ElementCondition<'vdom, Q>
 where
     M: Matcher<ResolvedElement>,
 {
@@ -499,19 +478,11 @@ where
 
     fn explain_match_failure(&self, matcher: &M) -> TesterError {
         match Waitable::check(self) {
-            ControlFlow::Continue(_) => {
-                if let Some(parent) = self.parent
-                    && matches!(Waitable::check(parent), ControlFlow::Continue(_))
-                {
-                    parent.explain_match_failure(matcher)
-                } else {
-                    (self.error_builder)(self.rendered_parent_dom())
-                }
-            }
+            ControlFlow::Continue(_) => self.query.describe_failure(&self.data.document()),
             ControlFlow::Break(n) => {
                 let resolved = self.data.build_resolved_element(n);
                 TesterError::AssertionFailure {
-                    query: self.query.clone(),
+                    query: self.query.to_string(),
                     actual_outer_html: Description::new()
                         .nested(Description::new().text(resolved.outer_html()))
                         .to_string(),
@@ -523,7 +494,7 @@ where
     }
 }
 
-impl<'vdom> IntoFuture for ElementCondition<'vdom> {
+impl<'vdom, Q: Query + 'vdom> IntoFuture for ElementCondition<'vdom, Q> {
     type Output = Result<ResolvedElement, TesterError>;
     type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + 'vdom>>;
 
@@ -598,19 +569,14 @@ impl<'vdom> IntoFuture for ElementCondition<'vdom> {
 /// Unlike [ElementCondition], there is no notion of waiting for the matched elements to appear. The
 /// must use [AllElementsCondition::expect] to await a condition on the set of elements.
 #[derive(Clone)]
-pub struct AllElementsCondition<'vdom> {
+pub struct AllElementsCondition<'vdom, Q> {
     data: &'vdom DocumentTester,
-    query: String,
-    selector: SelectorList,
+    query: Q,
 }
 
-impl<'vdom> AllElementsCondition<'vdom> {
-    pub(crate) fn new(data: &'vdom DocumentTester, query: String, selector: SelectorList) -> Self {
-        Self {
-            data,
-            query,
-            selector,
-        }
+impl<'vdom, Q: CloneableQuery + 'vdom> AllElementsCondition<'vdom, Q> {
+    pub(crate) fn new(data: &'vdom DocumentTester, query: Q) -> Self {
+        Self { data, query }
     }
 
     /// Asserts that the given [Matcher] matches this element collection, either immediately or in
@@ -678,7 +644,7 @@ impl<'vdom> AllElementsCondition<'vdom> {
     ///
     /// > Warning! The same warning applies as with [ElementCondition] about awaiting an
     /// > expectation: The test may spuriously pass despite the implementation being wrong.
-    pub fn expect<M>(&self, matcher: M) -> MatcherCondition<'vdom, M, AllElementsCondition<'vdom>>
+    pub fn expect<M>(&self, matcher: M) -> MatcherCondition<'vdom, M, Self>
     where
         M: Matcher<Vec<ResolvedElement>>,
     {
@@ -690,7 +656,7 @@ impl<'vdom> AllElementsCondition<'vdom> {
     }
 
     pub fn immediately(&self) -> Vec<ResolvedElement> {
-        let node_ids = self.data.get_elements(&self.selector);
+        let node_ids = self.query.get_all_elements(&self.data.document());
         node_ids
             .into_iter()
             .map(|node_id| self.data.build_resolved_element(node_id))
@@ -698,13 +664,13 @@ impl<'vdom> AllElementsCondition<'vdom> {
     }
 }
 
-impl<'vdom> EventLoopDriver for AllElementsCondition<'vdom> {
+impl<'vdom, Q: CloneableQuery + 'vdom> EventLoopDriver for AllElementsCondition<'vdom, Q> {
     async fn pump(&mut self) {
         let _ = self.data.pump().await;
     }
 }
 
-impl<'vdom, M> Matchable<M> for AllElementsCondition<'vdom>
+impl<'vdom, Q: CloneableQuery + 'vdom, M> Matchable<M> for AllElementsCondition<'vdom, Q>
 where
     M: Matcher<Vec<ResolvedElement>>,
 {
@@ -718,7 +684,7 @@ where
     fn explain_match_failure(&self, matcher: &M) -> TesterError {
         let resolved = self.immediately();
         TesterError::AssertionFailure {
-            query: self.query.clone(),
+            query: self.query.to_string(),
             actual_outer_html: Description::new()
                 .text("[")
                 .nested(Description::new().text(resolved.iter().fold(

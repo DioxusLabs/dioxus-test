@@ -1,12 +1,16 @@
 use crate::{
     condition::{AllElementsCondition, ElementCondition},
     element::{NodeId, ResolvedElement},
-    result::{ErrorBuilder, TesterError},
+    query::{CloneableQuery, IntoQuery},
 };
-use blitz_dom::{Document as _, SelectorList};
+use blitz_dom::Document as _;
 use dioxus_core::{Element, VirtualDom};
 use dioxus_native_dom::{DioxusDocument, DocumentConfig};
-use std::{cell::RefCell, rc::Rc, time::Duration};
+use std::{
+    cell::{Ref, RefCell},
+    rc::Rc,
+    time::Duration,
+};
 use tokio::time::{error::Elapsed, timeout};
 
 /// The maximum time [DocumentTester] will wait for new events when running [DocumentTester::pump]
@@ -157,31 +161,11 @@ impl DocumentTester {
         }
     }
 
-    /// Immediately returns the first element in the DOM satisfying the given query.
-    ///
-    /// If no such element already exists on the DOM, then this returns an error.
-    ///
-    /// Returns an error if the Query contains a syntactically invalid CSS selector.
-    pub(crate) fn get_element(&self, query: &SelectorList) -> Option<usize> {
-        self.document.borrow().inner().query_selector_raw(query)
-    }
-
-    /// Immediately returns all already elements in the DOM satisfying the given query.
-    ///
-    /// Returns an error if the Query contains a syntactically invalid CSS selector.
-    pub(crate) fn get_elements(&self, query: &SelectorList) -> Vec<usize> {
-        self.document
-            .borrow()
-            .inner()
-            .query_selector_all_raw(query)
-            .to_vec()
-    }
-
     /// Returns a representation of first element in the DOM satisfying the given query.
     ///
     /// The query can be anything which dereferences to a `str`, including `&str` and `String`. This
     /// method then interprets it as a CSS selector. Alternatively, one can select by testid with
-    /// [by_testid].
+    /// [by_testid][crate::by_testid].
     ///
     /// The test can:
     ///
@@ -219,31 +203,29 @@ impl DocumentTester {
     /// ```
     ///
     /// Panics if the query contains a syntactically invalid CSS selector.
-    pub fn query(&self, query: impl TryIntoSelector) -> ElementCondition<'_> {
-        let error = query.to_error_builder();
-        let rendered_query = query.to_string();
-        let selector = self.create_selector(query);
-        ElementCondition::new(self, rendered_query, selector, error)
+    pub fn query<'vdom, Q: CloneableQuery + 'vdom>(
+        &'vdom self,
+        query: impl IntoQuery<Query = Q>,
+    ) -> ElementCondition<'vdom, Q> {
+        ElementCondition::new(self, query.into_query())
     }
 
     /// Returns a representation of elements in the DOM satisfying the given query.
     ///
     /// The query can be anything which dereferences to a `str`, including `&str` and `String`. This
     /// method then interprets it as a CSS selector. Alternatively, one can select by testid with
-    /// [by_testid].
+    /// [by_testid][crate::by_testid].
     ///
     /// The test can immediately resolve the set of elements in order to assert on or interact with
     /// them, or it can make an assertion and drive the event loop until that assertion to be true.
     /// See [AllElementsCondition] for more.
     ///
     /// Panics if the query contains a syntactically invalid CSS selector.
-    pub fn query_all(&self, query: impl TryIntoSelector) -> AllElementsCondition<'_> {
-        let document = self.document.borrow_mut();
-        let rendered_query = query.to_string();
-        let selector = query
-            .try_into_selector(&document)
-            .expect("Invalid CSS selector");
-        AllElementsCondition::new(self, rendered_query, selector)
+    pub fn query_all<'vdom, Q: CloneableQuery + 'vdom>(
+        &'vdom self,
+        query: impl IntoQuery<Query = Q>,
+    ) -> AllElementsCondition<'vdom, Q> {
+        AllElementsCondition::new(self, query.into_query())
     }
 
     pub(crate) fn build_resolved_element(&self, id: usize) -> ResolvedElement {
@@ -253,92 +235,9 @@ impl DocumentTester {
         }
     }
 
-    pub(crate) fn create_selector(&self, query: impl TryIntoSelector) -> SelectorList {
-        let document = self.document.borrow_mut();
-        query
-            .try_into_selector(&document)
-            .expect("Invalid CSS selector")
+    pub(crate) fn document(&self) -> Ref<'_, DioxusDocument> {
+        self.document.borrow()
     }
-}
-
-/// A value which can be turned into a CSS selector to query the DOM.
-///
-/// This is implemented for all types which dereference to `str`, including `&str` and `String`.
-///
-/// One can also select by [testid](https://testing-library.com/docs/queries/bytestid/) using the
-/// function [by_testid].
-pub trait TryIntoSelector: std::fmt::Display {
-    fn try_into_selector(self, document: &DioxusDocument) -> Result<SelectorList, TesterError>;
-
-    fn to_error_builder(&self) -> Rc<ErrorBuilder>;
-}
-
-impl<T: AsRef<str> + std::fmt::Display> TryIntoSelector for T {
-    fn try_into_selector(self, document: &DioxusDocument) -> Result<SelectorList, TesterError> {
-        document
-            .inner()
-            .try_parse_selector_list(self.as_ref())
-            .map_err(|_| {
-                TesterError::InvalidCssSelector(format!("Invalid CSS selector '{}'", self.as_ref()))
-            })
-    }
-
-    fn to_error_builder(&self) -> Rc<ErrorBuilder> {
-        let selector: String = self.as_ref().into();
-        Rc::new(move |dom| TesterError::NoSuchElementWithCssSelector(selector.clone(), dom))
-    }
-}
-
-struct QueryByTestId(String);
-
-impl TryIntoSelector for QueryByTestId {
-    fn try_into_selector(self, document: &DioxusDocument) -> Result<SelectorList, TesterError> {
-        Ok(document
-            .inner()
-            .try_parse_selector_list(&format!(r#"[data-testid="{}"]"#, self.0))
-            .expect("Selector with testid should always parse"))
-    }
-
-    fn to_error_builder(&self) -> Rc<ErrorBuilder> {
-        let testid = self.0.clone();
-        Rc::new(move |dom| TesterError::NoSuchElementWithTestId(testid.clone(), dom))
-    }
-}
-
-impl std::fmt::Display for QueryByTestId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, r#"[data-testid="{}"]"#, self.0)
-    }
-}
-
-/// Returns a query selector matching elements with the given value in the `data-testid` attribute.
-///
-/// ```
-/// use dioxus::prelude::*;
-/// use dioxus_test::{by_testid, matchers::{eq, inner_html}, render};
-///
-/// #[component]
-/// fn MyComponent() -> Element {
-///     rsx! {
-///         div {
-///              "data-testid": "the-label",
-///              "Label content"
-///         }
-///     }
-/// }
-///
-/// let tester = render(MyComponent).build();
-/// tester
-///     .query(by_testid("the-label"))
-///     .expect(inner_html(eq("Label content")))
-///     .immediately()
-///     .unwrap();
-/// ```
-///
-/// This attribute is a common convention for marking DOM components with which tests interact. Find
-/// more information [here](https://testing-library.com/docs/queries/bytestid/).
-pub fn by_testid(testid: impl AsRef<str>) -> impl TryIntoSelector {
-    QueryByTestId(testid.as_ref().to_string())
 }
 
 #[cfg(test)]
