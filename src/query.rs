@@ -250,6 +250,42 @@ fn render_parent_dom(parent: Option<&dyn Query>, document: &DioxusDocument) -> S
     }
 }
 
+/// Returns a query selector matching elements with the given ARIA role.
+///
+/// ```
+/// use accesskit::Role;
+/// use dioxus::prelude::*;
+/// use dioxus_test::{by_role, matchers::{eq, inner_html}, render};
+///
+/// #[component]
+/// fn MyComponent() -> Element {
+///     rsx! {
+///         button {
+///              onclick: |_| {
+///                  print!("Clicked!")
+///              },
+///              "Click me!"
+///         }
+///     }
+/// }
+///
+/// # async fn test_fn() {
+/// let tester = render(MyComponent).build();
+/// tester
+///     .query(by_role(Role::Button))
+///     .click()
+///     .await
+///     .unwrap();
+/// # }
+/// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+/// ```
+///
+/// This attribute is a common convention for marking DOM components with which tests interact. Find
+/// more information [here](https://testing-library.com/docs/queries/bytestid/).
+pub fn by_role(role: Role) -> impl IntoQuery {
+    QueryByRole(role, None)
+}
+
 #[derive(Clone)]
 struct QueryByRole<'parent>(Role, Option<&'parent dyn Query>);
 
@@ -269,17 +305,7 @@ impl<'parent> Query for QueryByRole<'parent> {
     }
 
     fn render_parent_dom(&self, document: &DioxusDocument) -> String {
-        match self.1 {
-            Some(c) => match c.get_first_element(document) {
-                Some(element) => document
-                    .inner()
-                    .get_node(element)
-                    .expect("Expected to find node")
-                    .outer_html_pretty(),
-                None => c.render_parent_dom(document),
-            },
-            None => document.inner().root_element().outer_html_pretty(),
-        }
+        render_parent_dom(self.1, document)
     }
 
     fn describe_failure(&self, document: &DioxusDocument) -> TesterError {
@@ -358,40 +384,4 @@ impl<'parent> IntoQuery for QueryByRole<'parent> {
     fn into_query(self) -> Self::Query {
         self
     }
-}
-
-/// Returns a query selector matching elements with the given ARIA role.
-///
-/// ```
-/// use accesskit::Role;
-/// use dioxus::prelude::*;
-/// use dioxus_test::{by_role, matchers::{eq, inner_html}, render};
-///
-/// #[component]
-/// fn MyComponent() -> Element {
-///     rsx! {
-///         button {
-///              onclick: |_| {
-///                  print!("Clicked!")
-///              },
-///              "Click me!"
-///         }
-///     }
-/// }
-///
-/// # async fn test_fn() {
-/// let tester = render(MyComponent).build();
-/// tester
-///     .query(by_role(Role::Button))
-///     .click()
-///     .await
-///     .unwrap();
-/// # }
-/// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
-/// ```
-///
-/// This attribute is a common convention for marking DOM components with which tests interact. Find
-/// more information [here](https://testing-library.com/docs/queries/bytestid/).
-pub fn by_role(role: Role) -> impl IntoQuery {
-    QueryByRole(role, None)
 }
