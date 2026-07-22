@@ -55,20 +55,7 @@ impl<'parent, T: AsRef<str> + std::fmt::Display + Clone> Query for CssSelectorQu
         let selector_list = self
             .parse_css_selector_to_query(document)
             .expect("Error parsing CSS selector");
-        let doc_guard = document.inner();
-        let start_node = if let Some(parent) = self.1 {
-            doc_guard.get_node(parent.get_first_element(document)?)?
-        } else {
-            doc_guard.root_node()
-        };
-        let mut result = None;
-        query_selector::<&blitz_dom::Node, QueryFirst>(
-            start_node,
-            &selector_list,
-            &mut result,
-            MayUseInvalidation::Yes,
-        );
-        result.map(|node| node.id)
+        get_first_element_with_selector(document, selector_list, self.1)
     }
 
     fn get_all_elements(&self, document: &DioxusDocument) -> Vec<usize> {
@@ -79,17 +66,7 @@ impl<'parent, T: AsRef<str> + std::fmt::Display + Clone> Query for CssSelectorQu
     }
 
     fn render_parent_dom(&self, document: &DioxusDocument) -> String {
-        match self.1 {
-            Some(c) => match c.get_first_element(document) {
-                Some(element) => document
-                    .inner()
-                    .get_node(element)
-                    .expect("Expected to find node")
-                    .outer_html_pretty(),
-                None => c.render_parent_dom(document),
-            },
-            None => document.inner().root_element().outer_html_pretty(),
-        }
+        render_parent_dom(self.1, document)
     }
 
     fn describe_failure(&self, document: &DioxusDocument) -> TesterError {
@@ -131,26 +108,43 @@ impl<'parent, T: AsRef<str> + std::fmt::Display + Clone> ParentableQuery
     }
 }
 
+/// Returns a query selector matching elements with the given value in the `data-testid` attribute.
+///
+/// ```
+/// use dioxus::prelude::*;
+/// use dioxus_test::{by_testid, matchers::{eq, inner_html}, render};
+///
+/// #[component]
+/// fn MyComponent() -> Element {
+///     rsx! {
+///         div {
+///              "data-testid": "the-label",
+///              "Label content"
+///         }
+///     }
+/// }
+///
+/// let tester = render(MyComponent).build();
+/// tester
+///     .query(by_testid("the-label"))
+///     .expect(inner_html(eq("Label content")))
+///     .immediately()
+///     .unwrap();
+/// ```
+///
+/// This attribute is a common convention for marking DOM components with which tests interact. Find
+/// more information [here](https://testing-library.com/docs/queries/bytestid/).
+pub fn by_testid(testid: impl AsRef<str>) -> impl IntoQuery {
+    QueryByTestId(testid.as_ref().to_string(), None)
+}
+
 #[derive(Clone)]
 struct QueryByTestId<'parent>(String, Option<&'parent dyn Query>);
 
 impl<'parent> Query for QueryByTestId<'parent> {
     fn get_first_element(&self, document: &DioxusDocument) -> Option<usize> {
         let selector_list = self.create_selector(document);
-        let doc_guard = document.inner();
-        let start_node = if let Some(parent) = self.1 {
-            doc_guard.get_node(parent.get_first_element(document)?)?
-        } else {
-            doc_guard.root_node()
-        };
-        let mut result = None;
-        query_selector::<&blitz_dom::Node, QueryFirst>(
-            start_node,
-            &selector_list,
-            &mut result,
-            MayUseInvalidation::Yes,
-        );
-        result.map(|node| node.id)
+        get_first_element_with_selector(document, selector_list, self.1)
     }
 
     fn get_all_elements(&self, document: &DioxusDocument) -> Vec<usize> {
@@ -161,17 +155,7 @@ impl<'parent> Query for QueryByTestId<'parent> {
     }
 
     fn render_parent_dom(&self, document: &DioxusDocument) -> String {
-        match self.1 {
-            Some(c) => match c.get_first_element(document) {
-                Some(element) => document
-                    .inner()
-                    .get_node(element)
-                    .expect("Expected to find node")
-                    .outer_html_pretty(),
-                None => c.render_parent_dom(document),
-            },
-            None => document.inner().root_element().outer_html_pretty(),
-        }
+        render_parent_dom(self.1, document)
     }
 
     fn describe_failure(&self, document: &DioxusDocument) -> TesterError {
@@ -214,32 +198,37 @@ impl<'parent> IntoQuery for QueryByTestId<'parent> {
     }
 }
 
-/// Returns a query selector matching elements with the given value in the `data-testid` attribute.
-///
-/// ```
-/// use dioxus::prelude::*;
-/// use dioxus_test::{by_testid, matchers::{eq, inner_html}, render};
-///
-/// #[component]
-/// fn MyComponent() -> Element {
-///     rsx! {
-///         div {
-///              "data-testid": "the-label",
-///              "Label content"
-///         }
-///     }
-/// }
-///
-/// let tester = render(MyComponent).build();
-/// tester
-///     .query(by_testid("the-label"))
-///     .expect(inner_html(eq("Label content")))
-///     .immediately()
-///     .unwrap();
-/// ```
-///
-/// This attribute is a common convention for marking DOM components with which tests interact. Find
-/// more information [here](https://testing-library.com/docs/queries/bytestid/).
-pub fn by_testid(testid: impl AsRef<str>) -> impl IntoQuery {
-    QueryByTestId(testid.as_ref().to_string(), None)
+fn get_first_element_with_selector(
+    document: &DioxusDocument,
+    selector_list: SelectorList,
+    parent: Option<&dyn Query>,
+) -> Option<usize> {
+    let doc_guard = document.inner();
+    let start_node = if let Some(parent) = parent {
+        doc_guard.get_node(parent.get_first_element(document)?)?
+    } else {
+        doc_guard.root_node()
+    };
+    let mut result = None;
+    query_selector::<&blitz_dom::Node, QueryFirst>(
+        start_node,
+        &selector_list,
+        &mut result,
+        MayUseInvalidation::Yes,
+    );
+    result.map(|node| node.id)
+}
+
+fn render_parent_dom(parent: Option<&dyn Query>, document: &DioxusDocument) -> String {
+    match parent {
+        Some(parent) => match parent.get_first_element(document) {
+            Some(element) => document
+                .inner()
+                .get_node(element)
+                .expect("Expected to find node")
+                .outer_html_pretty(),
+            None => parent.render_parent_dom(document),
+        },
+        None => document.inner().root_element().outer_html_pretty(),
+    }
 }
