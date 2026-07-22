@@ -141,9 +141,8 @@ pub mod matchers;
 mod query;
 mod result;
 
-pub use accesskit::Role;
 pub use condition::{AllElementsCondition, ElementCondition, MAX_TRIES};
 pub use document::{DocumentTester, render};
 pub use element::ResolvedElement;
-pub use query::{by_role, by_testid};
+pub use query::by_testid;
 pub use result::{Result, TesterError};

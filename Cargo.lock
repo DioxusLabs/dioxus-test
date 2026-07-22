@@ -826,7 +826,6 @@ dependencies = [
 name = "dioxus-test"
 version = "0.1.0"
 dependencies = [
- "accesskit",
  "blitz-dom",
  "dioxus",
  "dioxus-core",
