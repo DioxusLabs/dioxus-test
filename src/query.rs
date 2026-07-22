@@ -2,7 +2,8 @@ use crate::TesterError;
 use accesskit::{Node, Role};
 use blitz_dom::{Document as _, SelectorList};
 use dioxus_native_dom::DioxusDocument;
-use style::dom_apis::{MayUseInvalidation, QueryFirst, query_selector};
+use smallvec::SmallVec;
+use style::dom_apis::{MayUseInvalidation, QueryAll, QueryFirst, query_selector};
 
 /// A value which can be turned into a CSS selector to query the DOM.
 ///
@@ -76,10 +77,10 @@ impl<'parent, T: AsRef<str> + std::fmt::Display + Clone> Query for CssSelectorQu
     }
 
     fn get_all_elements(&self, document: &DioxusDocument) -> Vec<usize> {
-        document
-            .inner()
-            .query_selector_all_raw(&self.parse_css_selector_to_query(document).unwrap())
-            .to_vec()
+        let selector_list = self
+            .parse_css_selector_to_query(document)
+            .expect("Error parsing CSS selector");
+        get_all_elements_with_selector(document, selector_list, self.1)
     }
 
     fn render_parent_dom(&self, document: &DioxusDocument) -> String {
@@ -165,10 +166,8 @@ impl<'parent> Query for QueryByTestId<'parent> {
     }
 
     fn get_all_elements(&self, document: &DioxusDocument) -> Vec<usize> {
-        document
-            .inner()
-            .query_selector_all_raw(&self.create_selector(document))
-            .to_vec()
+        let selector_list = self.create_selector(document);
+        get_all_elements_with_selector(document, selector_list, self.1)
     }
 
     fn render_parent_dom(&self, document: &DioxusDocument) -> String {
@@ -234,6 +233,33 @@ fn get_first_element_with_selector(
         MayUseInvalidation::Yes,
     );
     result.map(|node| node.id)
+}
+
+fn get_all_elements_with_selector(
+    document: &DioxusDocument,
+    selector_list: SelectorList,
+    parent: Option<&dyn Query>,
+) -> Vec<usize> {
+    let doc_guard = document.inner();
+    let start_node = if let Some(parent) = parent {
+        let Some(parent_node_id) = parent.get_first_element(document) else {
+            return vec![];
+        };
+        let Some(parent_node) = doc_guard.get_node(parent_node_id) else {
+            return vec![];
+        };
+        parent_node
+    } else {
+        doc_guard.root_node()
+    };
+    let mut result = SmallVec::new();
+    query_selector::<&blitz_dom::Node, QueryAll>(
+        start_node,
+        &selector_list,
+        &mut result,
+        MayUseInvalidation::Yes,
+    );
+    result.into_iter().map(|node| node.id).collect()
 }
 
 fn render_parent_dom(parent: Option<&dyn Query>, document: &DioxusDocument) -> String {

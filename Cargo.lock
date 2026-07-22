@@ -833,6 +833,7 @@ dependencies = [
  "dioxus-html",
  "dioxus-native-dom",
  "indoc",
+ "smallvec",
  "stylo",
  "test-that",
  "tokio",

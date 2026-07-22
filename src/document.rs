@@ -280,10 +280,10 @@ mod tests {
         fn MyComponent() -> Element {
             rsx! {
                 div {
-                     class: "some-class",
+                    class: "some-class",
                 }
                 div {
-                     class: "some-class",
+                    class: "some-class",
                 }
             }
         }
@@ -291,6 +291,62 @@ mod tests {
 
         tester
             .query_all(".some-class")
+            .expect(len(eq(2)))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn query_all_allows_matching_multiple_elements_as_subquery() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "some-class",
+                }
+                div {
+                    class: "outer-class",
+                    div {
+                        class: "some-class",
+                    }
+                    div {
+                        class: "some-class",
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query(".outer-class")
+            .query_all(".some-class")
+            .expect(len(eq(2)))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn query_all_allows_matching_multiple_elements_as_subquery_with_test_id() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    "data-testid": "some-test-id",
+                }
+                div {
+                    class: "outer-class",
+                    div {
+                        "data-testid": "some-test-id",
+                    }
+                    div {
+                        "data-testid": "some-test-id",
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query(".outer-class")
+            .query_all(by_testid("some-test-id"))
             .expect(len(eq(2)))
             .immediately()
     }
@@ -342,6 +398,37 @@ mod tests {
             .query(".some-class")
             .query(by_role(Role::Button))
             .expect(inner_html(eq("Some label")))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn query_all_allows_matching_multiple_elements_as_subquery_with_role() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                button {
+                    onclick: |_| {},
+                    "Unmatched button"
+                }
+                div {
+                    class: "outer-class",
+                    button {
+                        onclick: |_| {},
+                        "Button one"
+                    }
+                    button {
+                        onclick: |_| {},
+                        "Button two"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query(".outer-class")
+            .query_all(by_role(Role::Button))
+            .expect(len(eq(2)))
             .immediately()
     }
 

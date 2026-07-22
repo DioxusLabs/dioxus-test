@@ -438,6 +438,56 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
             query,
         }
     }
+
+    /// Queries all matching elements contained within the element matching this instance.
+    ///
+    /// The query is scoped to elements strictly contained inside the element to which this instance
+    /// resolves. Elements not contained therein are not matched.
+    ///
+    /// ```rust
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{by_testid, render, matchers::{eq, len}};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         div {
+    ///             class: "some-class",
+    ///             "Non-matching element, since outside the container"
+    ///         }
+    ///         div {
+    ///             "data-testid": "some-testid",
+    ///             div {
+    ///                 class: "some-class",
+    ///                 "First matching element"
+    ///             }
+    ///             div {
+    ///                 class: "some-class",
+    ///                 "Second matching element"
+    ///             }
+    ///         }
+    ///     }
+    /// }
+    /// let tester = render(MyComponent).build();
+    ///
+    /// tester
+    ///     .query(by_testid("some-testid"))
+    ///     .query_all(".some-class")
+    ///     .expect(len(eq(2)))
+    ///     .immediately()
+    ///     .unwrap();
+    /// ```
+    ///
+    /// This can be used to narrow down problems with CSS selectors on larger, more complex DOMs.
+    pub fn query_all(
+        &'vdom self,
+        query: impl IntoQuery,
+    ) -> AllElementsCondition<'vdom, impl ParentableQuery + Clone> {
+        let query = query.into_query().with_parent(&self.query);
+        AllElementsCondition {
+            data: self.data,
+            query,
+        }
+    }
 }
 
 impl<'vdom, Q: Query> EventLoopDriver for ElementCondition<'vdom, Q> {
