@@ -367,7 +367,7 @@ impl<'parent> QueryByRole<'parent> {
 }
 
 impl<'parent> ParentableQuery for QueryByRole<'parent> {
-    fn with_parent(self, parent: &dyn Query) -> impl CloneableQuery {
+    fn with_parent(self, parent: &dyn Query) -> impl ParentableQuery + Clone {
         QueryByRole(self.0, Some(parent))
     }
 }
