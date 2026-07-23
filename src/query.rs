@@ -9,7 +9,7 @@ use style::dom_apis::{MayUseInvalidation, QueryFirst, query_selector};
 ///
 /// One can also select by [testid](https://testing-library.com/docs/queries/bytestid/) using the
 /// function [by_testid].
-pub trait Query: std::fmt::Display {
+pub trait Query: ToString {
     /// Returns the node ID of the first element in DOM order matching this query.
     fn get_first_element(&self, document: &DioxusDocument) -> Option<usize>;
 
