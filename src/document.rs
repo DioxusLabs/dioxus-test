@@ -1,7 +1,7 @@
 use crate::{
     condition::{AllElementsCondition, ElementCondition},
     element::{NodeId, ResolvedElement},
-    query::{CloneableQuery, IntoQuery},
+    query::{IntoQuery, Query},
 };
 use blitz_dom::Document as _;
 use dioxus_core::{Element, VirtualDom};
@@ -203,7 +203,7 @@ impl DocumentTester {
     /// ```
     ///
     /// Panics if the query contains a syntactically invalid CSS selector.
-    pub fn query<'vdom, Q: CloneableQuery + 'vdom>(
+    pub fn query<'vdom, Q: Query + Clone + 'vdom>(
         &'vdom self,
         query: impl IntoQuery<Query = Q>,
     ) -> ElementCondition<'vdom, Q> {
@@ -221,7 +221,7 @@ impl DocumentTester {
     /// See [AllElementsCondition] for more.
     ///
     /// Panics if the query contains a syntactically invalid CSS selector.
-    pub fn query_all<'vdom, Q: CloneableQuery + 'vdom>(
+    pub fn query_all<'vdom, Q: Query + Clone + 'vdom>(
         &'vdom self,
         query: impl IntoQuery<Query = Q>,
     ) -> AllElementsCondition<'vdom, Q> {

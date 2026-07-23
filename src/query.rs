@@ -10,29 +10,41 @@ use style::dom_apis::{MayUseInvalidation, QueryFirst, query_selector};
 /// One can also select by [testid](https://testing-library.com/docs/queries/bytestid/) using the
 /// function [by_testid].
 pub trait Query: std::fmt::Display {
+    /// Returns the node ID of the first element in DOM order matching this query.
     fn get_first_element(&self, document: &DioxusDocument) -> Option<usize>;
 
+    /// Returns the node IDs of all elements matching this query.
     fn get_all_elements(&self, document: &DioxusDocument) -> Vec<usize>;
 
+    /// Constructs a [TesterError] representing this query failing to match an element.
     fn describe_failure(&self, document: &DioxusDocument) -> TesterError;
 
+    /// Renders the DOM surrounding this query as a pretty-printed string.
+    ///
+    /// If the query has no parent, this renders the entire DOM of the document. If it has a parent,
+    /// and that parent matches an element, then it renders the DOM of that element. If it has a
+    /// parent which is not matched, then it returns the output of `render_parent_dom` on the
+    /// parent.
     fn render_parent_dom(&self, document: &DioxusDocument) -> String;
 }
 
+/// A data type which can be converted into the associated [Query].
+///
+/// Each concrete query returned by the functions in this model implements this trivially. In
+/// addition, string-like types implement this to construct [CssSelectorQuery].
 pub trait IntoQuery {
-    type Query: CloneableQuery;
+    type Query: ParentableQuery + Clone;
 
     fn into_query(self) -> Self::Query;
 }
 
-pub trait CloneableQuery: ParentableQuery + Clone {}
-
-impl<T: ParentableQuery + Clone> CloneableQuery for T {}
-
+/// TODO: Docs
 pub trait ParentableQuery: Query {
-    fn with_parent(self, parent: &dyn Query) -> impl CloneableQuery;
+    /// TODO: Docs
+    fn with_parent(self, parent: &dyn Query) -> impl ParentableQuery + Clone;
 }
 
+/// TODO: Docs
 #[derive(Clone)]
 pub struct CssSelectorQuery<'parent, T>(T, Option<&'parent dyn Query>);
 
@@ -103,7 +115,7 @@ impl<'parent, T: AsRef<str> + std::fmt::Display + Clone> CssSelectorQuery<'paren
 impl<'parent, T: AsRef<str> + std::fmt::Display + Clone> ParentableQuery
     for CssSelectorQuery<'parent, T>
 {
-    fn with_parent(self, parent: &dyn Query) -> impl CloneableQuery {
+    fn with_parent(self, parent: &dyn Query) -> impl ParentableQuery + Clone {
         CssSelectorQuery(self.0, Some(parent))
     }
 }
@@ -179,7 +191,7 @@ impl<'parent> QueryByTestId<'parent> {
 }
 
 impl<'parent> ParentableQuery for QueryByTestId<'parent> {
-    fn with_parent(self, parent: &dyn Query) -> impl CloneableQuery {
+    fn with_parent(self, parent: &dyn Query) -> impl ParentableQuery + Clone {
         QueryByTestId(self.0, Some(parent))
     }
 }

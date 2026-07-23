@@ -1,7 +1,7 @@
 use crate::{
     DocumentTester, TesterError,
     element::ResolvedElement,
-    query::{CloneableQuery, IntoQuery, ParentableQuery, Query},
+    query::{IntoQuery, ParentableQuery, Query},
 };
 use std::{marker::PhantomData, ops::ControlFlow, pin::Pin};
 use test_that::{description::Description, matcher::MatcherResult, prelude::Matcher};
@@ -177,7 +177,7 @@ impl<'vdom, Q: Clone> Clone for ElementCondition<'vdom, Q> {
     }
 }
 
-impl<'vdom, Q: CloneableQuery + 'vdom> ElementCondition<'vdom, Q> {
+impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
     pub(crate) fn new(data: &'vdom DocumentTester, query: Q) -> Self {
         Self { data, query }
     }
@@ -431,7 +431,7 @@ impl<'vdom, Q: CloneableQuery + 'vdom> ElementCondition<'vdom, Q> {
     pub fn query(
         &'vdom self,
         query: impl IntoQuery,
-    ) -> ElementCondition<'vdom, impl CloneableQuery> {
+    ) -> ElementCondition<'vdom, impl ParentableQuery + Clone> {
         let query = query.into_query().with_parent(&self.query);
         ElementCondition {
             data: self.data,
@@ -574,7 +574,7 @@ pub struct AllElementsCondition<'vdom, Q> {
     query: Q,
 }
 
-impl<'vdom, Q: CloneableQuery + 'vdom> AllElementsCondition<'vdom, Q> {
+impl<'vdom, Q: Query + Clone + 'vdom> AllElementsCondition<'vdom, Q> {
     pub(crate) fn new(data: &'vdom DocumentTester, query: Q) -> Self {
         Self { data, query }
     }
@@ -664,13 +664,13 @@ impl<'vdom, Q: CloneableQuery + 'vdom> AllElementsCondition<'vdom, Q> {
     }
 }
 
-impl<'vdom, Q: CloneableQuery + 'vdom> EventLoopDriver for AllElementsCondition<'vdom, Q> {
+impl<'vdom, Q: Query + Clone + 'vdom> EventLoopDriver for AllElementsCondition<'vdom, Q> {
     async fn pump(&mut self) {
         let _ = self.data.pump().await;
     }
 }
 
-impl<'vdom, Q: CloneableQuery + 'vdom, M> Matchable<M> for AllElementsCondition<'vdom, Q>
+impl<'vdom, Q: Query + Clone + 'vdom, M> Matchable<M> for AllElementsCondition<'vdom, Q>
 where
     M: Matcher<Vec<ResolvedElement>>,
 {
