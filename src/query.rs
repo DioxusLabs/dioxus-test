@@ -253,9 +253,8 @@ fn render_parent_dom(parent: Option<&dyn Query>, document: &DioxusDocument) -> S
 /// Returns a query selector matching elements with the given ARIA role.
 ///
 /// ```
-/// use accesskit::Role;
 /// use dioxus::prelude::*;
-/// use dioxus_test::{by_role, matchers::{eq, inner_html}, render};
+/// use dioxus_test::{Role, by_role, matchers::{eq, inner_html}, render};
 ///
 /// #[component]
 /// fn MyComponent() -> Element {
@@ -279,9 +278,6 @@ fn render_parent_dom(parent: Option<&dyn Query>, document: &DioxusDocument) -> S
 /// # }
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
 /// ```
-///
-/// This attribute is a common convention for marking DOM components with which tests interact. Find
-/// more information [here](https://testing-library.com/docs/queries/bytestid/).
 pub fn by_role(role: Role) -> impl IntoQuery {
     QueryByRole(role, None)
 }
