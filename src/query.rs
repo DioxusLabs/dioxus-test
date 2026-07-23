@@ -353,7 +353,7 @@ impl<'parent> QueryByRole<'parent> {
         let mut result: Vec<_> = node
             .children()
             .iter()
-            .filter_map(|child_id| self.find_first_element_starting_at(*child_id, nodes))
+            .flat_map(|child_id| self.find_all_elements_starting_at(*child_id, nodes))
             .collect();
         if node.role() == self.0 {
             result.push(node_id.0 as usize)

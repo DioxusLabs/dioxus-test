@@ -242,7 +242,7 @@ impl DocumentTester {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Result, by_testid, matchers::inner_html, render};
+    use crate::{Result, Role, by_role, by_testid, matchers::inner_html, render};
     use dioxus::prelude::*;
     use indoc::indoc;
     use test_that::prelude::*;
@@ -292,6 +292,56 @@ mod tests {
         tester
             .query_all(".some-class")
             .expect(len(eq(2)))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn query_all_allows_matching_multiple_elements_by_role() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                button {
+                    onclick: |_| {},
+                    "Button one"
+                }
+                button {
+                    onclick: |_| {},
+                    "Button two"
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query_all(by_role(Role::Button))
+            .expect(len(eq(2)))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn query_by_role_selects_subelement_when_used_as_subquery() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                button {
+                     onclick: |_| {},
+                     "A different label"
+                }
+                div {
+                    class: "some-class",
+                    button {
+                         onclick: |_| {},
+                         "Some label"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query(".some-class")
+            .query(by_role(Role::Button))
+            .expect(inner_html(eq("Some label")))
             .immediately()
     }
 
