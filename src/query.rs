@@ -38,13 +38,17 @@ pub trait IntoQuery {
     fn into_query(self) -> Self::Query;
 }
 
-/// TODO: Docs
+/// A [Query] on which one can set a parent query.
+///
+/// This is a separate trait so that [Query] remains dyn-compatible. All existing query types
+/// implement it.
 pub trait ParentableQuery: Query {
-    /// TODO: Docs
+    /// Constructs a new [ParentableQuery] from this instance with the parent set to the given
+    /// value.
     fn with_parent(self, parent: &dyn Query) -> impl ParentableQuery + Clone;
 }
 
-/// TODO: Docs
+/// A query based on an arbitrary CSS selector.
 #[derive(Clone)]
 pub struct CssSelectorQuery<'parent, T>(T, Option<&'parent dyn Query>);
 
