@@ -366,6 +366,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn clicking_unclickable_element_causes_failure_with_correct_message() -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    "data-testid": "arbitrary-testid",
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester.query(by_testid("arbitrary-testid")).click().await;
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                Attempted to send `click` event to noninteractive element:
+                  <div data-testid="arbitrary-testid" />"#
+            ))))
+        )
+    }
+
+    #[tokio::test]
     async fn assertion_failure_message_includes_query_actual_value_description_and_explanation()
     -> TestResult<()> {
         #[component]

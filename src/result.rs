@@ -1,3 +1,5 @@
+use test_that::description::Description;
+
 pub type Result<T> = std::result::Result<T, TesterError>;
 
 pub(crate) type ErrorBuilder = dyn Fn(String) -> TesterError;
@@ -16,6 +18,9 @@ pub enum TesterError {
 
     /// No element matching the given CSS selector was found in the DOM.
     NoSuchElementWithCssSelector(String, String),
+
+    /// Attempt to interact (e.g., click) with a non-interactive element.
+    InteractionWithNonInteractiveElement(String, String),
 
     /// An assertion on a test element failed
     AssertionFailure {
@@ -40,6 +45,14 @@ impl std::fmt::Display for TesterError {
                     f,
                     "No such element with CSS selector `{selector}`\nDOM is:\n{dom}"
                 )
+            }
+            TesterError::InteractionWithNonInteractiveElement(event, rendered) => {
+                let description = Description::new()
+                    .text(format!(
+                        "Attempted to send `{event}` event to noninteractive element:"
+                    ))
+                    .nested(Description::new().text(rendered.clone()));
+                write!(f, "{description}")
             }
             TesterError::AssertionFailure {
                 query,

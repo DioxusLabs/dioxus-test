@@ -189,8 +189,7 @@ impl<'vdom> ElementCondition<'vdom> {
     /// It returns `Err` if the element does not appear.
     pub async fn click(&self) -> Result<(), TesterError> {
         let element = self.clone().into_future().await?;
-        element.click();
-        Ok(())
+        element.click()
     }
 
     /// Synonym for [ElementCondition::click].

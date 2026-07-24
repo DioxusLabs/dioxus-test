@@ -7,6 +7,8 @@ use dioxus_html::{
 use dioxus_native_dom::{DioxusDocument, synthetic_click_event};
 use std::{cell::RefCell, rc::Rc};
 
+use crate::TesterError;
+
 /// A reference to DOM node managed by a [crate::DocumentTester].
 ///
 /// This provides facilities for interacting with the node, querying its layout properties, and
@@ -23,7 +25,7 @@ impl ResolvedElement {
     ///
     /// If the element has an `onclick` handler, it will be invoked once
     /// [crate::DocumentTester::pump] is called.
-    pub fn click(&self) {
+    pub fn click(&self) -> crate::Result<()> {
         let guard = self.document.borrow();
         let event = Event::new(
             Rc::new(PlatformEventData::new(synthetic_click_event(
@@ -33,7 +35,7 @@ impl ResolvedElement {
             true,
         );
         drop(guard);
-        self.send_event("click", event);
+        self.send_event("click", event)
     }
 
     /// Sends an event with the given `name` to this element.
@@ -51,16 +53,20 @@ impl ResolvedElement {
     ///
     /// The `event` parameter must contain a [PlatformEventData] with a payload corresponding to the
     /// specific event type. This method panics if the event payload has the wrong type.
-    pub fn send_event(&self, name: &str, event: Event<PlatformEventData>) {
+    pub fn send_event(&self, name: &str, event: Event<PlatformEventData>) -> crate::Result<()> {
         let propagates = event.propagates();
-        let element_id = self
-            .get_element_id()
-            .expect("Expected element to have a Dioxus ID");
+        let Some(element_id) = self.get_element_id() else {
+            return Err(TesterError::InteractionWithNonInteractiveElement(
+                name.to_string(),
+                self.outer_html(),
+            ));
+        };
         self.document.borrow_mut().vdom.runtime().handle_event(
             name,
             Event::new(event.data, propagates),
             element_id,
         );
+        Ok(())
     }
 
     /// Returns a `String` consisting of the HTML of this element and all of its children.
