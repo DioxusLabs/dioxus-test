@@ -1,0 +1,13 @@
+#!/bin/sh
+# Pre-commit checks: formatting, lints, and tests.
+# Installed via `git config core.hooksPath .githooks` (see README.md).
+set -e
+
+echo "Running cargo fmt --check..."
+cargo fmt --all -- --check
+
+echo "Running cargo clippy..."
+cargo clippy --all-targets --all-features -- -D warnings
+
+echo "Building documentation..."
+RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
