@@ -832,6 +832,7 @@ dependencies = [
  "dioxus-html",
  "dioxus-native-dom",
  "indoc",
+ "stylo",
  "test-that",
  "tokio",
  "tracing",
