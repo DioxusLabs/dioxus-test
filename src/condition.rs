@@ -191,6 +191,20 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
         element.click()
     }
 
+    /// Sets the keyboard focus to the element to which this query resolves.
+    ///
+    /// This means that keyboard focus events triggered through
+    /// [DocumentTester::key_down][crate::DocumentTester::key_down] and
+    /// [DocumentTester::key_up][crate::DocumentTester::key_up] will be routed through the matching
+    /// element.
+    ///
+    /// Returns `Result::Ok` if the focus was successful, `Result::Err` if the matching element was
+    /// not found in the DOM.
+    pub async fn focus(&self) -> crate::Result<()> {
+        let element = self.clone().into_future().await?;
+        element.focus()
+    }
+
     /// Synonym for [ElementCondition::click].
     pub async fn tap(&self) -> Result<(), TesterError>
     where

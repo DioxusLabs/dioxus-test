@@ -38,6 +38,24 @@ impl ResolvedElement {
         self.send_event("click", event)
     }
 
+    /// Sets the keyboard focus to this element.
+    ///
+    /// This means that keyboard focus events triggered through
+    /// [DocumentTester::key_down][crate::DocumentTester::key_down] and
+    /// [DocumentTester::key_up][crate::DocumentTester::key_up] will be routed through this element.
+    pub fn focus(&self) -> crate::Result<()> {
+        let node_id = match self.node_id {
+            NodeId::Root => 0,
+            NodeId::Node(id) => id,
+        };
+        self.document
+            .borrow_mut()
+            .inner
+            .borrow_mut()
+            .set_focus_to(node_id);
+        Ok(())
+    }
+
     /// Sends an event with the given `name` to this element.
     ///
     /// The event is registered with the Dioxus runtime. A subsequent call to
@@ -213,6 +231,16 @@ impl ResolvedElement {
             .iter()
             .find(|attr| *attr.name.local == *arg)
             .map(|attr| attr.value.clone())
+    }
+
+    pub(crate) fn has_focus(&self) -> bool {
+        let document = self.document.borrow();
+        let base_document = document.inner.borrow();
+        let focus_node_id = base_document.get_focussed_node_id();
+        match self.node_id {
+            NodeId::Root => focus_node_id == Some(base_document.root_node().id),
+            NodeId::Node(node_id) => focus_node_id == Some(node_id),
+        }
     }
 }
 

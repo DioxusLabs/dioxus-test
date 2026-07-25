@@ -4,10 +4,12 @@ use crate::{
     query::{IntoQuery, Query},
 };
 use blitz_dom::Document as _;
+use blitz_traits::events::{BlitzKeyEvent, KeyState, UiEvent};
 use dioxus_core::{Element, VirtualDom};
+use dioxus_html::{Code, Key, Modifiers};
 use dioxus_native_dom::{DioxusDocument, DocumentConfig};
 use std::{
-    cell::{Ref, RefCell},
+    cell::{Ref, RefCell, RefMut},
     rc::Rc,
     time::Duration,
 };
@@ -228,6 +230,112 @@ impl DocumentTester {
         AllElementsCondition::new(self, query.into_query())
     }
 
+    /// Triggers an event that the given `key` with the given `modifiers` has been pressed.
+    ///
+    /// This will normally be processed by whichever element has keyboard focus, propagating through
+    /// the DOM as needed until a suitable event handler is found.
+    ///
+    /// ```
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{render, by_testid, matchers::{ends_with, inner_html}};
+    /// # use dioxus_html::{Key, Modifiers};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut input = use_signal(String::new);
+    ///     rsx! {
+    ///         div {
+    ///             "data-testid": "input",
+    ///             onkeydown: move |e| {
+    ///                 input.set(e.key().to_string());
+    ///             }
+    ///         }
+    ///         div {
+    ///             "data-testid": "output",
+    ///             "Key pressed: {input}"
+    ///         }
+    ///     }
+    /// }
+    /// # async fn run_test() {
+    /// let tester = render(MyComponent).build();
+    ///
+    /// tester.query(by_testid("input")).focus().await.unwrap();
+    /// tester.key_down(Key::Character("A".into()), Modifiers::empty()).unwrap();
+    /// tester
+    ///     .query(by_testid("output"))
+    ///     .expect(inner_html(ends_with("A")))
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test());
+    /// ```
+    pub fn key_down(&self, key: Key, modifiers: Modifiers) -> crate::Result<()> {
+        let event = BlitzKeyEvent {
+            key,
+            code: Code::Unidentified,
+            modifiers,
+            location: dioxus_html::Location::Standard,
+            is_auto_repeating: false,
+            is_composing: false,
+            state: KeyState::Pressed,
+            text: None,
+        };
+        self.document_mut().handle_ui_event(UiEvent::KeyDown(event));
+        Ok(())
+    }
+
+    /// Triggers an event that the given `key` with the given `modifiers` has been released.
+    ///
+    /// This will normally be processed by whichever element has keyboard focus, propagating through
+    /// the DOM as needed until a suitable event handler is found.
+    ///
+    /// ```
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{render, by_testid, matchers::{ends_with, inner_html}};
+    /// # use dioxus_html::{Key, Modifiers};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut input = use_signal(String::new);
+    ///     rsx! {
+    ///         div {
+    ///             "data-testid": "input",
+    ///             onkeyup: move |e| {
+    ///                 input.set(e.key().to_string());
+    ///             }
+    ///         }
+    ///         div {
+    ///             "data-testid": "output",
+    ///             "Key released: {input}"
+    ///         }
+    ///     }
+    /// }
+    /// # async fn run_test() {
+    /// let tester = render(MyComponent).build();
+    ///
+    /// tester.query(by_testid("input")).focus().await.unwrap();
+    /// tester.key_up(Key::Character("A".into()), Modifiers::empty()).unwrap();
+    /// tester
+    ///     .query(by_testid("output"))
+    ///     .expect(inner_html(ends_with("A")))
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test());
+    /// ```
+    pub fn key_up(&self, key: Key, modifiers: Modifiers) -> crate::Result<()> {
+        let event = BlitzKeyEvent {
+            key,
+            code: Code::Unidentified,
+            modifiers,
+            location: dioxus_html::Location::Standard,
+            is_auto_repeating: false,
+            is_composing: false,
+            state: KeyState::Released,
+            text: None,
+        };
+        self.document_mut().handle_ui_event(UiEvent::KeyUp(event));
+        Ok(())
+    }
+
     pub(crate) fn build_resolved_element(&self, id: usize) -> ResolvedElement {
         ResolvedElement {
             document: self.document.clone(),
@@ -238,11 +346,19 @@ impl DocumentTester {
     pub(crate) fn document(&self) -> Ref<'_, DioxusDocument> {
         self.document.borrow()
     }
+
+    fn document_mut(&self) -> RefMut<'_, DioxusDocument> {
+        self.document.borrow_mut()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Result, Role, by_role, by_testid, matchers::inner_html, render};
+    use crate::{
+        Result, Role, by_role, by_testid,
+        matchers::{has_focus, inner_html},
+        render,
+    };
     use dioxus::prelude::*;
     use indoc::indoc;
     use test_that::prelude::*;
@@ -934,5 +1050,109 @@ mod tests {
                 "#
             ))))
         )
+    }
+
+    #[tokio::test]
+    async fn element_does_not_have_focus_before_setting_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    "data-testid": "input",
+                    onkeydown: move |_| {}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query(by_testid("input"))
+            .expect(not(has_focus()))
+            .await
+    }
+
+    #[tokio::test]
+    async fn element_has_focus_after_setting_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    onkeyup: move |_| {}
+                }
+                div {
+                    "data-testid": "input",
+                    onkeydown: move |_| {}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester.query(by_testid("input")).focus().await?;
+
+        tester.query(by_testid("input")).expect(has_focus()).await
+    }
+
+    #[tokio::test]
+    async fn key_down_is_processed_by_element_with_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(String::new);
+            rsx! {
+                div {
+                    onkeyup: move |_| {}
+                }
+                div {
+                    "data-testid": "input",
+                    onkeydown: move |e| {
+                        input.set(e.key().to_string());
+                    }
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester.query(by_testid("input")).focus().await?;
+        tester.key_down(Key::Character("A".into()), Modifiers::empty())?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("A")))
+            .await
+    }
+
+    #[tokio::test]
+    async fn key_up_is_processed_by_element_with_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(String::new);
+            rsx! {
+                div {
+                    onkeyup: move |_| {}
+                }
+                div {
+                    "data-testid": "input",
+                    onkeyup: move |e| {
+                        input.set(e.key().to_string());
+                    }
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester.query(by_testid("input")).focus().await?;
+        tester.key_up(Key::Character("A".into()), Modifiers::empty())?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("A")))
+            .await
     }
 }
