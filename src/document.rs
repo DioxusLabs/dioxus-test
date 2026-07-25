@@ -220,12 +220,9 @@ impl DocumentTester {
     ///
     /// Panics if the query contains a syntactically invalid CSS selector.
     pub fn query(&self, query: impl TryIntoSelector) -> ElementCondition<'_> {
-        let document = self.document.borrow_mut();
         let error = query.to_error_builder();
         let rendered_query = query.to_string();
-        let selector = query
-            .try_into_selector(&document)
-            .expect("Invalid CSS selector");
+        let selector = self.create_selector(query);
         ElementCondition::new(self, rendered_query, selector, error)
     }
 
@@ -254,6 +251,13 @@ impl DocumentTester {
             document: self.document.clone(),
             node_id: NodeId::Node(id),
         }
+    }
+
+    pub(crate) fn create_selector(&self, query: impl TryIntoSelector) -> SelectorList {
+        let document = self.document.borrow_mut();
+        query
+            .try_into_selector(&document)
+            .expect("Invalid CSS selector")
     }
 }
 
@@ -343,6 +347,33 @@ mod tests {
     use dioxus::prelude::*;
     use indoc::indoc;
     use test_that::prelude::*;
+
+    #[test]
+    fn document_resolves_nested_queries_correctly() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    "Incorrect content"
+                }
+                div {
+                    "data-testid": "Arbitrary testid",
+                    div {
+                        class: "arbitrary-class",
+                        "Correct content"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query(by_testid("Arbitrary testid"))
+            .query(".arbitrary-class")
+            .expect(inner_html(eq("Correct content")))
+            .immediately()
+    }
 
     #[tokio::test]
     async fn query_all_allows_matching_multiple_elements() -> Result<()> {
@@ -598,6 +629,272 @@ mod tests {
                     </main>
                   </body>
                 </html>
+                "#
+            ))))
+        )
+    }
+
+    #[test]
+    fn dom_displayed_in_assertion_failure_message_starts_from_node_of_innermost_matching_query()
+    -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    div {
+                        "data-testid": "Arbitrary testid"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(".arbitrary-class")
+            .query(by_testid("Different testid"))
+            .expect(anything())
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                No such element with test ID `Different testid`
+                DOM is:
+                <div class="arbitrary-class">
+                  <div data-testid="Arbitrary testid" />
+                </div>
+                "#
+            ))))
+        )
+    }
+
+    #[tokio::test]
+    async fn dom_displayed_in_test_failure_message_starts_from_node_of_innermost_matching_query_when_requesting_resolved_element_directly()
+    -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    div {
+                        "data-testid": "Arbitrary testid"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(".arbitrary-class")
+            .query(by_testid("Different testid"))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                No such element with test ID `Different testid`
+                DOM is:
+                <div class="arbitrary-class">
+                  <div data-testid="Arbitrary testid" />
+                </div>
+                "#
+            ))))
+        )
+    }
+
+    #[tokio::test]
+    async fn dom_displayed_in_test_failure_message_starts_from_node_of_innermost_matching_query_when_interacting_with_element()
+    -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    div {
+                        "data-testid": "Arbitrary testid"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(".arbitrary-class")
+            .query(by_testid("Different testid"))
+            .click()
+            .await;
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                No such element with test ID `Different testid`
+                DOM is:
+                <div class="arbitrary-class">
+                  <div data-testid="Arbitrary testid" />
+                </div>
+                "#
+            ))))
+        )
+    }
+
+    #[tokio::test]
+    async fn dom_displayed_in_test_failure_message_starts_from_node_of_innermost_matching_query_in_async_mode()
+    -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    div {
+                        "data-testid": "Arbitrary testid"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(".arbitrary-class")
+            .query(by_testid("Different testid"))
+            .expect(anything())
+            .await;
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                No such element with test ID `Different testid`
+                DOM is:
+                <div class="arbitrary-class">
+                  <div data-testid="Arbitrary testid" />
+                </div>
+                "#
+            ))))
+        )
+    }
+
+    #[test]
+    fn assertion_failure_when_outer_node_not_matched_references_outer_node() -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    div {
+                        "data-testid": "Arbitrary testid"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(".different-class")
+            .query(by_testid("Arbitrary testid"))
+            .expect(anything())
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                No such element with CSS selector `.different-class`
+                DOM is:
+                <html>
+                  <head />
+                  <body>
+                    <main id="main">
+                      <div class="arbitrary-class">
+                        <div data-testid="Arbitrary testid" />
+                      </div>
+                    </main>
+                  </body>
+                "#
+            ))))
+        )
+    }
+
+    #[tokio::test]
+    async fn assertion_failure_when_outer_node_not_matched_references_outer_node_in_async_mode()
+    -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    div {
+                        "data-testid": "Arbitrary testid"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(".different-class")
+            .query(by_testid("Arbitrary testid"))
+            .await;
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                No such element with CSS selector `.different-class`
+                DOM is:
+                <html>
+                  <head />
+                  <body>
+                    <main id="main">
+                      <div class="arbitrary-class">
+                        <div data-testid="Arbitrary testid" />
+                      </div>
+                    </main>
+                  </body>
+                "#
+            ))))
+        )
+    }
+
+    #[test]
+    fn assertion_failure_when_outer_node_not_matched_references_outer_node_in_immediate_mode()
+    -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    div {
+                        "data-testid": "Arbitrary testid"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        let result = tester
+            .query(".different-class")
+            .query(by_testid("Arbitrary testid"))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(indoc!(
+                r#"
+                No such element with CSS selector `.different-class`
+                DOM is:
+                <html>
+                  <head />
+                  <body>
+                    <main id="main">
+                      <div class="arbitrary-class">
+                        <div data-testid="Arbitrary testid" />
+                      </div>
+                    </main>
+                  </body>
                 "#
             ))))
         )

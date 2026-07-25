@@ -1,4 +1,7 @@
-use crate::{DocumentTester, TesterError, element::ResolvedElement, result::ErrorBuilder};
+use crate::{
+    DocumentTester, TesterError, document::TryIntoSelector, element::ResolvedElement,
+    result::ErrorBuilder,
+};
 use blitz_dom::SelectorList;
 use std::{marker::PhantomData, ops::ControlFlow, pin::Pin, rc::Rc};
 use test_that::{description::Description, matcher::MatcherResult, prelude::Matcher};
@@ -166,6 +169,7 @@ pub struct ElementCondition<'vdom> {
     query: String,
     selector: SelectorList,
     error_builder: Rc<ErrorBuilder>,
+    parent: Option<&'vdom ElementCondition<'vdom>>,
 }
 
 impl<'vdom> ElementCondition<'vdom> {
@@ -180,6 +184,7 @@ impl<'vdom> ElementCondition<'vdom> {
             query,
             selector,
             error_builder,
+            parent: None,
         }
     }
 
@@ -386,8 +391,66 @@ impl<'vdom> ElementCondition<'vdom> {
     /// ```
     pub fn immediately(&self) -> Result<ResolvedElement, TesterError> {
         match self.check() {
-            ControlFlow::Continue(_) => Err((self.error_builder)(self.data.root().outer_html())),
+            ControlFlow::Continue(_) => Err(self.describe_failure()),
             ControlFlow::Break(b) => Ok(self.data.build_resolved_element(b)),
+        }
+    }
+
+    /// Queries an element contained within the element matching this instance.
+    ///
+    /// The query is scoped to elements strictly contained inside the element to which this instance
+    /// resolves. Elements not contained therein are not matched.
+    ///
+    /// ```rust
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{by_testid, render, matchers::{eq, inner_html}};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         div {
+    ///             class: "some-class",
+    ///             "Incorrect content"
+    ///         }
+    ///         div {
+    ///             "data-testid": "some-testid",
+    ///             div {
+    ///                 class: "some-class",
+    ///                 "Correct content"
+    ///             }
+    ///         }
+    ///     }
+    /// }
+    /// let tester = render(MyComponent).build();
+    ///
+    /// tester
+    ///     .query(by_testid("some-testid"))
+    ///     .query(".some-class")
+    ///     .expect(inner_html(eq("Correct content")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// ```
+    ///
+    /// This can be used to narrow down problems with CSS selectors on larger, more complex DOMs.
+    pub fn query(&'vdom self, query: impl TryIntoSelector) -> ElementCondition<'vdom> {
+        let error_builder = query.to_error_builder();
+        let rendered_query = format!("{} {query}", self.query);
+        let selector = self.data.create_selector(&rendered_query);
+        Self {
+            data: self.data,
+            query: rendered_query,
+            selector,
+            error_builder,
+            parent: Some(self),
+        }
+    }
+
+    fn rendered_parent_dom(&self) -> String {
+        match self.parent {
+            Some(c) => match c.immediately() {
+                Ok(element) => element.outer_html(),
+                Err(_) => c.rendered_parent_dom(),
+            },
+            None => self.data.root().outer_html(),
         }
     }
 }
@@ -410,7 +473,13 @@ impl<'vdom> Waitable for ElementCondition<'vdom> {
     }
 
     fn describe_failure(&self) -> TesterError {
-        (self.error_builder)(self.data.root().outer_html())
+        if let Some(parent) = self.parent
+            && matches!(Waitable::check(parent), ControlFlow::Continue(_))
+        {
+            parent.describe_failure()
+        } else {
+            (self.error_builder)(self.rendered_parent_dom())
+        }
     }
 }
 
@@ -430,7 +499,15 @@ where
 
     fn explain_match_failure(&self, matcher: &M) -> TesterError {
         match Waitable::check(self) {
-            ControlFlow::Continue(_) => (self.error_builder)(self.data.root().outer_html()),
+            ControlFlow::Continue(_) => {
+                if let Some(parent) = self.parent
+                    && matches!(Waitable::check(parent), ControlFlow::Continue(_))
+                {
+                    parent.explain_match_failure(matcher)
+                } else {
+                    (self.error_builder)(self.rendered_parent_dom())
+                }
+            }
             ControlFlow::Break(n) => {
                 let resolved = self.data.build_resolved_element(n);
                 TesterError::AssertionFailure {
