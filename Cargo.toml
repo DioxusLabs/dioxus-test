@@ -10,10 +10,12 @@ homepage = "https://dioxuslabs.com/learn/0.7/getting_started"
 keywords = ["dom", "ui", "gui", "react", "testing"]
 
 [dependencies]
+accesskit = "0.24"
 blitz-dom = { version = "=0.3.0-beta.1", default-features = false }
 dioxus-core = { version = "0.8.0-alpha.0", git = "https://github.com/dioxuslabs/dioxus" }
 dioxus-html = { version = "0.8.0-alpha.0", git = "https://github.com/dioxuslabs/dioxus" }
 dioxus-native-dom = { version = "0.8.0-alpha.0", git = "https://github.com/dioxuslabs/dioxus" }
+stylo = { version = "0.19.0" }
 test-that = { version = "0.5.2", default-features = false, features = ["regex", "num-traits"] }
 tokio = { version = "1.48", features = ["time"] }
 tracing = { version = "0.1.41" }
