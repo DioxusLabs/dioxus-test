@@ -1365,4 +1365,32 @@ mod tests {
             .expect(inner_html(eq("Counter value: 1")))
             .immediately()
     }
+
+    #[tokio::test]
+    async fn input_is_processed_by_target_element() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(String::new);
+            rsx! {
+                input {
+                    "data-testid": "input",
+                    oninput: move |e| {
+                        input.set(e.value());
+                    }
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent);
+
+        tester.query(by_testid("input")).input("Some value").await?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("Some value")))
+            .await
+    }
 }

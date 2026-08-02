@@ -204,6 +204,50 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
         element.focus()
     }
 
+    /// Inputs the given text on the element to which this query resolves.
+    ///
+    /// This does not respect keyboard focus. It operates as though the focus were switched to the
+    /// matching element, then the data input, then the focus restored to its previous element.
+    ///
+    /// ```
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{matchers::{eq, inner_html}, render, by_testid};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut input = use_signal(String::new);
+    ///     rsx! {
+    ///         input {
+    ///             "data-testid": "input",
+    ///             oninput: move |e| {
+    ///                 input.set(e.value());
+    ///             }
+    ///         }
+    ///         div {
+    ///             "data-testid": "output",
+    ///             {input}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[tokio::test]
+    /// # */
+    /// async fn input_element_processes_entered_text() {
+    ///     let tester = render(MyComponent);
+    ///     tester.query(by_testid("input")).input("Entered value").await.unwrap();
+    ///     tester
+    ///         .query(by_testid("output"))
+    ///         .expect(inner_html(eq("Entered value")))
+    ///         .await
+    ///         .unwrap();
+    /// }
+    /// ```
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test());
+    pub async fn input(&self, text: impl Into<String>) -> crate::Result<()> {
+        let element = self.clone().into_future().await?;
+        element.input(text)
+    }
+
     /// Synonym for [ElementCondition::click].
     pub async fn tap(&self) -> Result<(), TesterError>
     where

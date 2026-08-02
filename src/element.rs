@@ -6,7 +6,7 @@ use dioxus_html::{
     Modifiers, PlatformEventData,
     geometry::{Coordinates, euclid::Point2D},
 };
-use dioxus_native_dom::{DioxusDocument, synthetic_click_event};
+use dioxus_native_dom::{DioxusDocument, synthetic_click_event, synthetic_form_event};
 use std::{
     cell::{RefCell, RefMut},
     rc::Rc,
@@ -39,6 +39,22 @@ impl ResolvedElement {
         );
         drop(guard);
         self.send_event("click", event)
+    }
+
+    /// Dispatches an `input` event on this element with the given `text`.
+    ///
+    /// If this element accepts keyboard input (e.g., if it is an `<input>` or `<textarea>`
+    /// element), then the text input will be processed by the `oninput` event handler.
+    ///
+    /// This does not respect the keyboard focus.
+    pub(crate) fn input(&self, text: impl Into<String>) -> Result<(), TesterError> {
+        let guard = self.document.borrow();
+        let event = Event::new(
+            Rc::new(PlatformEventData::new(synthetic_form_event(text, vec![]))),
+            true,
+        );
+        drop(guard);
+        self.send_event("input", event)
     }
 
     /// Sets the keyboard focus to this element.
