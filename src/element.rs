@@ -1,13 +1,16 @@
+use crate::TesterError;
 use blitz_dom::{DocGuard, Document as _, Node, Point};
+use blitz_traits::events::BlitzFocusEvent;
 use dioxus_core::{ElementId, Event};
 use dioxus_html::{
     Modifiers, PlatformEventData,
     geometry::{Coordinates, euclid::Point2D},
 };
 use dioxus_native_dom::{DioxusDocument, synthetic_click_event};
-use std::{cell::RefCell, rc::Rc};
-
-use crate::TesterError;
+use std::{
+    cell::{RefCell, RefMut},
+    rc::Rc,
+};
 
 /// A reference to DOM node managed by a [crate::DocumentTester].
 ///
@@ -44,15 +47,7 @@ impl ResolvedElement {
     /// [DocumentTester::key_down][crate::DocumentTester::key_down] and
     /// [DocumentTester::key_up][crate::DocumentTester::key_up] will be routed through this element.
     pub fn focus(&self) -> crate::Result<()> {
-        let node_id = match self.node_id {
-            NodeId::Root => 0,
-            NodeId::Node(id) => id,
-        };
-        self.document
-            .borrow_mut()
-            .inner
-            .borrow_mut()
-            .set_focus_to(node_id);
+        change_focus(self.document.borrow_mut(), self.node_id);
         Ok(())
     }
 
@@ -212,14 +207,7 @@ impl ResolvedElement {
 
     fn get_element_id(&self) -> Option<ElementId> {
         let guard = self.document.borrow();
-        self.node_id
-            .resolve(&guard.inner())
-            .element_data()?
-            .attrs
-            .iter()
-            .find(|attr| *attr.name.local == *"data-dioxus-id")
-            .and_then(|attr| attr.value.parse::<usize>().ok())
-            .map(ElementId)
+        get_element_id(&guard.inner(), self.node_id)
     }
 
     pub(crate) fn attribute(&self, arg: &str) -> Option<String> {
@@ -267,4 +255,60 @@ impl NodeId {
                 .expect("Element must be attached"),
         }
     }
+}
+
+fn change_focus(guard: RefMut<DioxusDocument>, new_focus_node_id: NodeId) {
+    let new_focus_id = match new_focus_node_id {
+        NodeId::Root => guard.inner.borrow().root_node().id,
+        NodeId::Node(id) => id,
+    };
+    let old_focus_id = guard.inner.borrow().get_focussed_node_id();
+    guard.inner.borrow_mut().set_focus_to(new_focus_id);
+    if let Some(old_focus_id) = old_focus_id
+        && let Some(element_id) = get_element_id(&guard.inner(), NodeId::Node(old_focus_id))
+    {
+        guard.vdom.runtime().handle_event(
+            "blur",
+            Event::new(
+                Rc::new(PlatformEventData::new(Box::new(BlitzFocusEvent))),
+                false,
+            ),
+            element_id,
+        );
+        guard.vdom.runtime().handle_event(
+            "focusout",
+            Event::new(
+                Rc::new(PlatformEventData::new(Box::new(BlitzFocusEvent))),
+                true,
+            ),
+            element_id,
+        );
+    }
+    if let Some(element_id) = get_element_id(&guard.inner(), new_focus_node_id) {
+        guard.vdom.runtime().handle_event(
+            "focus",
+            Event::new(
+                Rc::new(PlatformEventData::new(Box::new(BlitzFocusEvent))),
+                false,
+            ),
+            element_id,
+        );
+        guard.vdom.runtime().handle_event(
+            "focusin",
+            Event::new(
+                Rc::new(PlatformEventData::new(Box::new(BlitzFocusEvent))),
+                true,
+            ),
+            element_id,
+        );
+    }
+}
+
+fn get_element_id(guard: &DocGuard<'_>, node_id: NodeId) -> Option<ElementId> {
+    let element_data = node_id.resolve(guard).element_data()?;
+    let attr = element_data
+        .attrs
+        .iter()
+        .find(|attr| *attr.name.local == *"data-dioxus-id")?;
+    Some(ElementId(attr.value.parse::<usize>().ok()?))
 }

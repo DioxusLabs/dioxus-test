@@ -91,6 +91,8 @@ impl DocumentTester {
         document.inner_mut().viewport_mut().window_size = self.window_size.unwrap_or((500, 800));
         document.initial_build();
         document.inner_mut().resolve(self.now);
+        // Process any effects which were triggered but not executed immediately during rendering.
+        document.vdom.process_events();
         drop(document);
         self
     }
@@ -1090,6 +1092,128 @@ mod tests {
         tester.query(by_testid("input")).focus().await?;
 
         tester.query(by_testid("input")).expect(has_focus()).await
+    }
+
+    #[tokio::test]
+    async fn element_processes_focus_event_when_gaining_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(|| "");
+            rsx! {
+                div {
+                    "data-testid": "input",
+                    onfocus: move |_| {
+                        input.set("Value set");
+                    }
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester.query(by_testid("input")).focus().await?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("Value set")))
+            .await
+    }
+
+    #[tokio::test]
+    async fn element_processes_focus_in_event_when_gaining_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(|| "");
+            rsx! {
+                div {
+                    "data-testid": "input",
+                    onfocusin: move |_| {
+                        input.set("Value set");
+                    }
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester.query(by_testid("input")).focus().await?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("Value set")))
+            .await
+    }
+
+    #[tokio::test]
+    async fn element_processes_blur_event_when_losin_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(|| "");
+            rsx! {
+                div {
+                    "data-testid": "input",
+                    onblur: move |_| {
+                        input.set("Value set");
+                    }
+                }
+                div {
+                    "data-testid": "second-element",
+                    onfocus: move |_| {}
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+        tester.query(by_testid("input")).focus().await?;
+
+        tester.query(by_testid("second-element")).focus().await?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("Value set")))
+            .await
+    }
+
+    #[tokio::test]
+    async fn element_processes_focus_out_event_when_losing_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(|| "");
+            rsx! {
+                div {
+                    "data-testid": "input",
+                    onfocusin: move |_| {}
+                }
+                div {
+                    "data-testid": "second-element",
+                    onfocusin: move |_| {
+                        input.set("Value set");
+                    }
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+        tester.query(by_testid("input")).focus().await?;
+
+        tester.query(by_testid("second-element")).focus().await?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("Value set")))
+            .await
     }
 
     #[tokio::test]
