@@ -1,12 +1,18 @@
 use crate::{
     condition::{AllElementsCondition, ElementCondition},
     element::{NodeId, ResolvedElement},
-    result::{ErrorBuilder, TesterError},
+    query::{IntoQuery, Query},
 };
-use blitz_dom::{Document as _, SelectorList};
+use blitz_dom::Document as _;
+use blitz_traits::events::{BlitzKeyEvent, KeyState, UiEvent};
 use dioxus_core::{Element, VirtualDom};
+use dioxus_html::{Code, Key, Modifiers};
 use dioxus_native_dom::{DioxusDocument, DocumentConfig};
-use std::{cell::RefCell, rc::Rc, time::Duration};
+use std::{
+    cell::{Ref, RefCell, RefMut},
+    rc::Rc,
+    time::Duration,
+};
 use tokio::time::{error::Elapsed, timeout};
 
 /// The maximum time [DocumentTester] will wait for new events when running [DocumentTester::pump]
@@ -85,6 +91,8 @@ impl DocumentTester {
         document.inner_mut().viewport_mut().window_size = self.window_size.unwrap_or((500, 800));
         document.initial_build();
         document.inner_mut().resolve(self.now);
+        // Process any effects which were triggered but not executed immediately during rendering.
+        document.vdom.process_events();
         drop(document);
         self
     }
@@ -157,31 +165,11 @@ impl DocumentTester {
         }
     }
 
-    /// Immediately returns the first element in the DOM satisfying the given query.
-    ///
-    /// If no such element already exists on the DOM, then this returns an error.
-    ///
-    /// Returns an error if the Query contains a syntactically invalid CSS selector.
-    pub(crate) fn get_element(&self, query: &SelectorList) -> Option<usize> {
-        self.document.borrow().inner().query_selector_raw(query)
-    }
-
-    /// Immediately returns all already elements in the DOM satisfying the given query.
-    ///
-    /// Returns an error if the Query contains a syntactically invalid CSS selector.
-    pub(crate) fn get_elements(&self, query: &SelectorList) -> Vec<usize> {
-        self.document
-            .borrow()
-            .inner()
-            .query_selector_all_raw(query)
-            .to_vec()
-    }
-
     /// Returns a representation of first element in the DOM satisfying the given query.
     ///
     /// The query can be anything which dereferences to a `str`, including `&str` and `String`. This
     /// method then interprets it as a CSS selector. Alternatively, one can select by testid with
-    /// [by_testid].
+    /// [by_testid][crate::by_testid].
     ///
     /// The test can:
     ///
@@ -219,31 +207,135 @@ impl DocumentTester {
     /// ```
     ///
     /// Panics if the query contains a syntactically invalid CSS selector.
-    pub fn query(&self, query: impl TryIntoSelector) -> ElementCondition<'_> {
-        let error = query.to_error_builder();
-        let rendered_query = query.to_string();
-        let selector = self.create_selector(query);
-        ElementCondition::new(self, rendered_query, selector, error)
+    pub fn query<'vdom, Q: Query + Clone + 'vdom>(
+        &'vdom self,
+        query: impl IntoQuery<Query = Q>,
+    ) -> ElementCondition<'vdom, Q> {
+        ElementCondition::new(self, query.into_query())
     }
 
     /// Returns a representation of elements in the DOM satisfying the given query.
     ///
     /// The query can be anything which dereferences to a `str`, including `&str` and `String`. This
     /// method then interprets it as a CSS selector. Alternatively, one can select by testid with
-    /// [by_testid].
+    /// [by_testid][crate::by_testid].
     ///
     /// The test can immediately resolve the set of elements in order to assert on or interact with
     /// them, or it can make an assertion and drive the event loop until that assertion to be true.
     /// See [AllElementsCondition] for more.
     ///
     /// Panics if the query contains a syntactically invalid CSS selector.
-    pub fn query_all(&self, query: impl TryIntoSelector) -> AllElementsCondition<'_> {
-        let document = self.document.borrow_mut();
-        let rendered_query = query.to_string();
-        let selector = query
-            .try_into_selector(&document)
-            .expect("Invalid CSS selector");
-        AllElementsCondition::new(self, rendered_query, selector)
+    pub fn query_all<'vdom, Q: Query + Clone + 'vdom>(
+        &'vdom self,
+        query: impl IntoQuery<Query = Q>,
+    ) -> AllElementsCondition<'vdom, Q> {
+        AllElementsCondition::new(self, query.into_query())
+    }
+
+    /// Triggers an event that the given `key` with the given `modifiers` has been pressed.
+    ///
+    /// This will normally be processed by whichever element has keyboard focus, propagating through
+    /// the DOM as needed until a suitable event handler is found.
+    ///
+    /// ```
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{render, by_testid, matchers::{ends_with, inner_html}};
+    /// # use dioxus_html::{Key, Modifiers};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut input = use_signal(String::new);
+    ///     rsx! {
+    ///         div {
+    ///             "data-testid": "input",
+    ///             onkeydown: move |e| {
+    ///                 input.set(e.key().to_string());
+    ///             }
+    ///         }
+    ///         div {
+    ///             "data-testid": "output",
+    ///             "Key pressed: {input}"
+    ///         }
+    ///     }
+    /// }
+    /// # async fn run_test() {
+    /// let tester = render(MyComponent).build();
+    ///
+    /// tester.query(by_testid("input")).focus().await.unwrap();
+    /// tester.key_down(Key::Character("A".into()), Modifiers::empty()).unwrap();
+    /// tester
+    ///     .query(by_testid("output"))
+    ///     .expect(inner_html(ends_with("A")))
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test());
+    /// ```
+    pub fn key_down(&self, key: Key, modifiers: Modifiers) -> crate::Result<()> {
+        let event = BlitzKeyEvent {
+            key,
+            code: Code::Unidentified,
+            modifiers,
+            location: dioxus_html::Location::Standard,
+            is_auto_repeating: false,
+            is_composing: false,
+            state: KeyState::Pressed,
+            text: None,
+        };
+        self.document_mut().handle_ui_event(UiEvent::KeyDown(event));
+        Ok(())
+    }
+
+    /// Triggers an event that the given `key` with the given `modifiers` has been released.
+    ///
+    /// This will normally be processed by whichever element has keyboard focus, propagating through
+    /// the DOM as needed until a suitable event handler is found.
+    ///
+    /// ```
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{render, by_testid, matchers::{ends_with, inner_html}};
+    /// # use dioxus_html::{Key, Modifiers};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut input = use_signal(String::new);
+    ///     rsx! {
+    ///         div {
+    ///             "data-testid": "input",
+    ///             onkeyup: move |e| {
+    ///                 input.set(e.key().to_string());
+    ///             }
+    ///         }
+    ///         div {
+    ///             "data-testid": "output",
+    ///             "Key released: {input}"
+    ///         }
+    ///     }
+    /// }
+    /// # async fn run_test() {
+    /// let tester = render(MyComponent).build();
+    ///
+    /// tester.query(by_testid("input")).focus().await.unwrap();
+    /// tester.key_up(Key::Character("A".into()), Modifiers::empty()).unwrap();
+    /// tester
+    ///     .query(by_testid("output"))
+    ///     .expect(inner_html(ends_with("A")))
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test());
+    /// ```
+    pub fn key_up(&self, key: Key, modifiers: Modifiers) -> crate::Result<()> {
+        let event = BlitzKeyEvent {
+            key,
+            code: Code::Unidentified,
+            modifiers,
+            location: dioxus_html::Location::Standard,
+            is_auto_repeating: false,
+            is_composing: false,
+            state: KeyState::Released,
+            text: None,
+        };
+        self.document_mut().handle_ui_event(UiEvent::KeyUp(event));
+        Ok(())
     }
 
     pub(crate) fn build_resolved_element(&self, id: usize) -> ResolvedElement {
@@ -253,97 +345,22 @@ impl DocumentTester {
         }
     }
 
-    pub(crate) fn create_selector(&self, query: impl TryIntoSelector) -> SelectorList {
-        let document = self.document.borrow_mut();
-        query
-            .try_into_selector(&document)
-            .expect("Invalid CSS selector")
-    }
-}
-
-/// A value which can be turned into a CSS selector to query the DOM.
-///
-/// This is implemented for all types which dereference to `str`, including `&str` and `String`.
-///
-/// One can also select by [testid](https://testing-library.com/docs/queries/bytestid/) using the
-/// function [by_testid].
-pub trait TryIntoSelector: std::fmt::Display {
-    fn try_into_selector(self, document: &DioxusDocument) -> Result<SelectorList, TesterError>;
-
-    fn to_error_builder(&self) -> Rc<ErrorBuilder>;
-}
-
-impl<T: AsRef<str> + std::fmt::Display> TryIntoSelector for T {
-    fn try_into_selector(self, document: &DioxusDocument) -> Result<SelectorList, TesterError> {
-        document
-            .inner()
-            .try_parse_selector_list(self.as_ref())
-            .map_err(|_| {
-                TesterError::InvalidCssSelector(format!("Invalid CSS selector '{}'", self.as_ref()))
-            })
+    pub(crate) fn document(&self) -> Ref<'_, DioxusDocument> {
+        self.document.borrow()
     }
 
-    fn to_error_builder(&self) -> Rc<ErrorBuilder> {
-        let selector: String = self.as_ref().into();
-        Rc::new(move |dom| TesterError::NoSuchElementWithCssSelector(selector.clone(), dom))
+    fn document_mut(&self) -> RefMut<'_, DioxusDocument> {
+        self.document.borrow_mut()
     }
-}
-
-struct QueryByTestId(String);
-
-impl TryIntoSelector for QueryByTestId {
-    fn try_into_selector(self, document: &DioxusDocument) -> Result<SelectorList, TesterError> {
-        Ok(document
-            .inner()
-            .try_parse_selector_list(&format!(r#"[data-testid="{}"]"#, self.0))
-            .expect("Selector with testid should always parse"))
-    }
-
-    fn to_error_builder(&self) -> Rc<ErrorBuilder> {
-        let testid = self.0.clone();
-        Rc::new(move |dom| TesterError::NoSuchElementWithTestId(testid.clone(), dom))
-    }
-}
-
-impl std::fmt::Display for QueryByTestId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, r#"[data-testid="{}"]"#, self.0)
-    }
-}
-
-/// Returns a query selector matching elements with the given value in the `data-testid` attribute.
-///
-/// ```
-/// use dioxus::prelude::*;
-/// use dioxus_test::{by_testid, matchers::{eq, inner_html}, render};
-///
-/// #[component]
-/// fn MyComponent() -> Element {
-///     rsx! {
-///         div {
-///              "data-testid": "the-label",
-///              "Label content"
-///         }
-///     }
-/// }
-///
-/// let tester = render(MyComponent).build();
-/// tester
-///     .query(by_testid("the-label"))
-///     .expect(inner_html(eq("Label content")))
-///     .immediately()
-///     .unwrap();
-/// ```
-///
-/// This attribute is a common convention for marking DOM components with which tests interact. Find
-/// more information [here](https://testing-library.com/docs/queries/bytestid/).
-pub fn by_testid(testid: impl AsRef<str>) -> impl TryIntoSelector {
-    QueryByTestId(testid.as_ref().to_string())
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Result, by_testid, matchers::inner_html, render};
+    use crate::{
+        Result, Role, by_role, by_testid,
+        matchers::{has_focus, inner_html},
+        render,
+    };
     use dioxus::prelude::*;
     use indoc::indoc;
     use test_that::prelude::*;
@@ -381,10 +398,10 @@ mod tests {
         fn MyComponent() -> Element {
             rsx! {
                 div {
-                     class: "some-class",
+                    class: "some-class",
                 }
                 div {
-                     class: "some-class",
+                    class: "some-class",
                 }
             }
         }
@@ -392,6 +409,143 @@ mod tests {
 
         tester
             .query_all(".some-class")
+            .expect(len(eq(2)))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn query_all_allows_matching_multiple_elements_as_subquery() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "some-class",
+                }
+                div {
+                    class: "outer-class",
+                    div {
+                        class: "some-class",
+                    }
+                    div {
+                        class: "some-class",
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query(".outer-class")
+            .query_all(".some-class")
+            .expect(len(eq(2)))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn query_all_allows_matching_multiple_elements_as_subquery_with_test_id() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    "data-testid": "some-test-id",
+                }
+                div {
+                    class: "outer-class",
+                    div {
+                        "data-testid": "some-test-id",
+                    }
+                    div {
+                        "data-testid": "some-test-id",
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query(".outer-class")
+            .query_all(by_testid("some-test-id"))
+            .expect(len(eq(2)))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn query_all_allows_matching_multiple_elements_by_role() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                button {
+                    onclick: |_| {},
+                    "Button one"
+                }
+                button {
+                    onclick: |_| {},
+                    "Button two"
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query_all(by_role(Role::Button))
+            .expect(len(eq(2)))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn query_by_role_selects_subelement_when_used_as_subquery() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                button {
+                     onclick: |_| {},
+                     "A different label"
+                }
+                div {
+                    class: "some-class",
+                    button {
+                         onclick: |_| {},
+                         "Some label"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query(".some-class")
+            .query(by_role(Role::Button))
+            .expect(inner_html(eq("Some label")))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn query_all_allows_matching_multiple_elements_as_subquery_with_role() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                button {
+                    onclick: |_| {},
+                    "Unmatched button"
+                }
+                div {
+                    class: "outer-class",
+                    button {
+                        onclick: |_| {},
+                        "Button one"
+                    }
+                    button {
+                        onclick: |_| {},
+                        "Button two"
+                    }
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query(".outer-class")
+            .query_all(by_role(Role::Button))
             .expect(len(eq(2)))
             .immediately()
     }
@@ -898,5 +1052,231 @@ mod tests {
                 "#
             ))))
         )
+    }
+
+    #[tokio::test]
+    async fn element_does_not_have_focus_before_setting_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    "data-testid": "input",
+                    onkeydown: move |_| {}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester
+            .query(by_testid("input"))
+            .expect(not(has_focus()))
+            .await
+    }
+
+    #[tokio::test]
+    async fn element_has_focus_after_setting_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    onkeyup: move |_| {}
+                }
+                div {
+                    "data-testid": "input",
+                    onkeydown: move |_| {}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester.query(by_testid("input")).focus().await?;
+
+        tester.query(by_testid("input")).expect(has_focus()).await
+    }
+
+    #[tokio::test]
+    async fn element_processes_focus_event_when_gaining_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(|| "");
+            rsx! {
+                div {
+                    "data-testid": "input",
+                    onfocus: move |_| {
+                        input.set("Value set");
+                    }
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester.query(by_testid("input")).focus().await?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("Value set")))
+            .await
+    }
+
+    #[tokio::test]
+    async fn element_processes_focus_in_event_when_gaining_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(|| "");
+            rsx! {
+                div {
+                    "data-testid": "input",
+                    onfocusin: move |_| {
+                        input.set("Value set");
+                    }
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester.query(by_testid("input")).focus().await?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("Value set")))
+            .await
+    }
+
+    #[tokio::test]
+    async fn element_processes_blur_event_when_losin_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(|| "");
+            rsx! {
+                div {
+                    "data-testid": "input",
+                    onblur: move |_| {
+                        input.set("Value set");
+                    }
+                }
+                div {
+                    "data-testid": "second-element",
+                    onfocus: move |_| {}
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+        tester.query(by_testid("input")).focus().await?;
+
+        tester.query(by_testid("second-element")).focus().await?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("Value set")))
+            .await
+    }
+
+    #[tokio::test]
+    async fn element_processes_focus_out_event_when_losing_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(|| "");
+            rsx! {
+                div {
+                    "data-testid": "input",
+                    onfocusin: move |_| {}
+                }
+                div {
+                    "data-testid": "second-element",
+                    onfocusin: move |_| {
+                        input.set("Value set");
+                    }
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+        tester.query(by_testid("input")).focus().await?;
+
+        tester.query(by_testid("second-element")).focus().await?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("Value set")))
+            .await
+    }
+
+    #[tokio::test]
+    async fn key_down_is_processed_by_element_with_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(String::new);
+            rsx! {
+                div {
+                    onkeyup: move |_| {}
+                }
+                div {
+                    "data-testid": "input",
+                    onkeydown: move |e| {
+                        input.set(e.key().to_string());
+                    }
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester.query(by_testid("input")).focus().await?;
+        tester.key_down(Key::Character("A".into()), Modifiers::empty())?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("A")))
+            .await
+    }
+
+    #[tokio::test]
+    async fn key_up_is_processed_by_element_with_focus() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut input = use_signal(String::new);
+            rsx! {
+                div {
+                    onkeyup: move |_| {}
+                }
+                div {
+                    "data-testid": "input",
+                    onkeyup: move |e| {
+                        input.set(e.key().to_string());
+                    }
+                }
+                div {
+                    "data-testid": "output",
+                    {input}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester.query(by_testid("input")).focus().await?;
+        tester.key_up(Key::Character("A".into()), Modifiers::empty())?;
+
+        tester
+            .query(by_testid("output"))
+            .expect(inner_html(eq("A")))
+            .await
     }
 }

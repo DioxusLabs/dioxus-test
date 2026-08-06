@@ -99,6 +99,54 @@ pub fn attribute(
     AttributeMatcher(name.as_ref().to_string(), inner)
 }
 
+/// Returns a [Matcher] which matches the element which has keyboard focus.
+///
+/// ```
+/// # use dioxus::prelude::*;
+/// # use dioxus_test::{render, by_testid, matchers::has_focus};
+/// #[component]
+/// fn MyComponent() -> Element {
+///     rsx! {
+///         div {
+///             "data-testid": "input",
+///             onkeydown: move |_| {}
+///         }
+///     }
+/// }
+/// # async fn run_test() {
+/// let tester = render(MyComponent).build();
+///
+/// tester.query(by_testid("input")).focus().await.unwrap();
+///
+/// tester
+///     .query(by_testid("input"))
+///     .expect(has_focus())
+///     .await
+///     .unwrap();
+/// # }
+/// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test());
+/// ```
+pub fn has_focus() -> impl Matcher<ResolvedElement> {
+    struct HasFocusMatcher;
+
+    impl Matcher<ResolvedElement> for HasFocusMatcher {
+        fn matches(&self, actual: &ResolvedElement) -> MatcherResult {
+            actual.has_focus().into()
+        }
+    }
+
+    impl Describable for HasFocusMatcher {
+        fn describe(&self, matcher_result: MatcherResult) -> Description {
+            match matcher_result {
+                MatcherResult::Match => "has keyboard focus".into(),
+                MatcherResult::NoMatch => "does not have keyboard focus".into(),
+            }
+        }
+    }
+
+    HasFocusMatcher
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{Result, by_testid, matchers::attribute, render};
