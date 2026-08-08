@@ -74,11 +74,14 @@ impl ResolvedElement {
                 self.outer_html(),
             ));
         };
-        self.document.borrow_mut().vdom.runtime().handle_event(
-            name,
-            Event::new(event.data, propagates),
-            element_id,
-        );
+        let mut document = self.document.borrow_mut();
+        document
+            .vdom
+            .runtime()
+            .handle_event(name, Event::new(event.data, propagates), element_id);
+        // Process any effects which were triggered but not executed immediately during rendering,
+        // and rerender the vdom to reflect any state changes they make.
+        while document.poll(None) {}
         Ok(())
     }
 

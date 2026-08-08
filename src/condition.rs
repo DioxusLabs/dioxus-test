@@ -285,6 +285,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
     /// > ```
     /// > use dioxus::prelude::*;
     /// > use dioxus_test::{matchers::{eq, inner_html}, render};
+    /// > use std::time::Duration;
     /// >
     /// > #[component]
     /// > fn MyComponent() -> Element {
@@ -292,7 +293,8 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
     /// >     rsx! {
     /// >         button {
     /// >              class: "test-button",
-    /// >              onclick: move |_| {
+    /// >              onclick: move |_| async move {
+    /// >                  tokio::time::sleep(Duration::from_secs(1)).await;
     /// >                  *text.write() = "Don't click any more!";
     /// >              },
     /// >              {text}
@@ -898,6 +900,7 @@ where
     /// ```
     /// use dioxus::prelude::*;
     /// use dioxus_test::{matchers::{eq, inner_html}, render};
+    /// use std::time::Duration;
     ///
     /// #[component]
     /// fn MyComponent() -> Element {
@@ -905,7 +908,8 @@ where
     ///     rsx! {
     ///         button {
     ///              class: "test-button",
-    ///              onclick: move |_| {
+    ///              onclick: move |_| async move {
+    ///                  tokio::time::sleep(Duration::from_secs(1)).await;
     ///                  *text.write() = "Don't click any more!";
     ///              },
     ///              {text}
