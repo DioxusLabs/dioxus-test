@@ -9,7 +9,7 @@ use dioxus_core::{Element, VirtualDom};
 use dioxus_html::{Code, Key, Modifiers};
 use dioxus_native_dom::{DioxusDocument, DocumentConfig};
 use std::{
-    cell::{Ref, RefCell, RefMut},
+    cell::{Cell, Ref, RefCell, RefMut},
     rc::Rc,
     time::Duration,
 };
@@ -30,6 +30,7 @@ pub struct DocumentTester {
     document: Rc<RefCell<DioxusDocument>>,
     now: f64,
     window_size: Option<(u32, u32)>,
+    built: Cell<bool>,
 }
 
 impl DocumentTester {
@@ -47,6 +48,7 @@ impl DocumentTester {
             document,
             now: 0.0,
             window_size: None,
+            built: Cell::new(false),
         }
     }
 
@@ -63,6 +65,7 @@ impl DocumentTester {
             document,
             now: 0.0,
             window_size: None,
+            built: Cell::new(false),
         }
     }
 
@@ -86,7 +89,10 @@ impl DocumentTester {
     /// Performs a layout and build for the DOM managed by this tester.
     ///
     /// This method must be invoked before querying any elements.
-    pub fn build(self) -> Self {
+    fn build(&self) {
+        if self.built.get() {
+            return;
+        }
         let mut document = self.document.borrow_mut();
         document.inner_mut().viewport_mut().window_size = self.window_size.unwrap_or((500, 800));
         document.initial_build();
@@ -95,7 +101,7 @@ impl DocumentTester {
         // and rerender the vdom to reflect any state changes they make.
         while document.poll(None) {}
         drop(document);
-        self
+        self.built.set(true);
     }
 
     /// Resolve a single round of asynchronous operations via the async runtime and the Dioxus
@@ -118,7 +124,7 @@ impl DocumentTester {
     /// # #[component]
     /// # fn AComponent() -> Element { rsx! { } }
     /// # async fn run_test() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let tester = dioxus_test::render(AComponent).build();
+    /// # let tester = dioxus_test::render(AComponent);
     /// tester.query("make-request-button").click().await;
     ///
     /// tester.pump().await?; // React to the click
@@ -160,6 +166,7 @@ impl DocumentTester {
     /// for awaiting expectations. If the test must await an expectation on the root element use
     /// [Self::query] with the CSS selector `:root`.
     pub fn root(&self) -> ResolvedElement {
+        self.build();
         ResolvedElement {
             document: self.document.clone(),
             node_id: NodeId::Root,
@@ -198,7 +205,7 @@ impl DocumentTester {
     ///    }
     /// }
     /// # async fn run_test() -> std::result::Result<(), Box<dyn std::error::Error>> {
-    /// let tester = dioxus_test::render(AComponent).build();
+    /// let tester = dioxus_test::render(AComponent);
     /// tester.query("#click-count").expect(inner_html(contains_substring("Click count: 0"))).await?;
     /// tester.query("button").click().await?;
     /// tester.query("#click-count").expect(inner_html(contains_substring("Click count: 1"))).await?;
@@ -212,6 +219,7 @@ impl DocumentTester {
         &'vdom self,
         query: impl IntoQuery<Query = Q>,
     ) -> ElementCondition<'vdom, Q> {
+        self.build();
         ElementCondition::new(self, query.into_query())
     }
 
@@ -230,6 +238,7 @@ impl DocumentTester {
         &'vdom self,
         query: impl IntoQuery<Query = Q>,
     ) -> AllElementsCondition<'vdom, Q> {
+        self.build();
         AllElementsCondition::new(self, query.into_query())
     }
 
@@ -259,7 +268,7 @@ impl DocumentTester {
     ///     }
     /// }
     /// # async fn run_test() {
-    /// let tester = render(MyComponent).build();
+    /// let tester = render(MyComponent);
     ///
     /// tester.query(by_testid("input")).focus().await.unwrap();
     /// tester.key_down(Key::Character("A".into()), Modifiers::empty()).unwrap();
@@ -272,6 +281,7 @@ impl DocumentTester {
     /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test());
     /// ```
     pub fn key_down(&self, key: Key, modifiers: Modifiers) -> crate::Result<()> {
+        self.build();
         let event = BlitzKeyEvent {
             key,
             code: Code::Unidentified,
@@ -282,7 +292,8 @@ impl DocumentTester {
             state: KeyState::Pressed,
             text: None,
         };
-        self.document_mut().handle_ui_event(UiEvent::KeyDown(event));
+        let mut document = self.document_mut();
+        document.handle_ui_event(UiEvent::KeyDown(event));
         Ok(())
     }
 
@@ -312,7 +323,7 @@ impl DocumentTester {
     ///     }
     /// }
     /// # async fn run_test() {
-    /// let tester = render(MyComponent).build();
+    /// let tester = render(MyComponent);
     ///
     /// tester.query(by_testid("input")).focus().await.unwrap();
     /// tester.key_up(Key::Character("A".into()), Modifiers::empty()).unwrap();
@@ -325,6 +336,7 @@ impl DocumentTester {
     /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test());
     /// ```
     pub fn key_up(&self, key: Key, modifiers: Modifiers) -> crate::Result<()> {
+        self.build();
         let event = BlitzKeyEvent {
             key,
             code: Code::Unidentified,
@@ -367,6 +379,25 @@ mod tests {
     use test_that::prelude::*;
 
     #[test]
+    fn document_builds_when_accessing_root_element() -> TestResult<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            rsx! {
+                div {
+                    class: "arbitrary-class",
+                    "Correct content"
+                }
+            }
+        }
+        let tester = render(MyComponent);
+
+        verify_that!(
+            tester.root().inner_html(),
+            contains_substring("Correct content")
+        )
+    }
+
+    #[test]
     fn document_resolves_nested_queries_correctly() -> Result<()> {
         #[component]
         fn MyComponent() -> Element {
@@ -384,7 +415,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester
             .query(by_testid("Arbitrary testid"))
@@ -406,7 +437,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester
             .query_all(".some-class")
@@ -433,7 +464,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester
             .query(".outer-class")
@@ -461,7 +492,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester
             .query(".outer-class")
@@ -485,7 +516,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester
             .query_all(by_role(Role::Button))
@@ -511,7 +542,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester
             .query(".some-class")
@@ -542,7 +573,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester
             .query(".outer-class")
@@ -561,7 +592,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester.query(by_testid("arbitrary-testid")).click().await;
 
@@ -587,7 +618,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester
             .query(by_testid("the-label"))
@@ -623,7 +654,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester
             .query_all(by_testid("the-label"))
@@ -669,7 +700,7 @@ mod tests {
             }
         }
 
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
         let test_button = tester.query(".test-button");
         let label = tester.query(by_testid("the-label"));
         tester.query(".test-button").click().await.unwrap();
@@ -691,7 +722,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester
             .query(".different-class")
@@ -727,7 +758,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester
             .query(by_testid("Different testid"))
@@ -763,7 +794,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester
             .query(by_testid("Different testid"))
@@ -803,7 +834,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester
             .query(".arbitrary-class")
@@ -839,7 +870,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester
             .query(".arbitrary-class")
@@ -874,7 +905,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester
             .query(".arbitrary-class")
@@ -910,7 +941,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester
             .query(".arbitrary-class")
@@ -945,7 +976,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester
             .query(".different-class")
@@ -987,7 +1018,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester
             .query(".different-class")
@@ -1028,7 +1059,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         let result = tester
             .query(".different-class")
@@ -1066,7 +1097,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester
             .query(by_testid("input"))
@@ -1088,7 +1119,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester.query(by_testid("input")).focus().await?;
 
@@ -1113,7 +1144,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester.query(by_testid("input")).focus().await?;
 
@@ -1141,7 +1172,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester.query(by_testid("input")).focus().await?;
 
@@ -1173,7 +1204,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
         tester.query(by_testid("input")).focus().await?;
 
         tester.query(by_testid("second-element")).focus().await?;
@@ -1206,7 +1237,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
         tester.query(by_testid("input")).focus().await?;
 
         tester.query(by_testid("second-element")).focus().await?;
@@ -1238,7 +1269,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester.query(by_testid("input")).focus().await?;
         tester.key_down(Key::Character("A".into()), Modifiers::empty())?;
@@ -1270,7 +1301,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester.query(by_testid("input")).focus().await?;
         tester.key_up(Key::Character("A".into()), Modifiers::empty())?;
@@ -1295,7 +1326,7 @@ mod tests {
             }
         }
 
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester
             .query(by_testid("value"))
@@ -1325,7 +1356,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(MyComponent).build();
+        let tester = render(MyComponent);
 
         tester.query(by_testid("button")).click().await?;
 
