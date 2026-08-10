@@ -142,7 +142,7 @@ impl<'parent, T: AsRef<str> + std::fmt::Display + Clone> ParentableQuery
 ///     }
 /// }
 ///
-/// let tester = render(MyComponent).build();
+/// let tester = render(MyComponent);
 /// tester
 ///     .query(by_testid("the-label"))
 ///     .expect(inner_html(eq("Label content")))
@@ -295,7 +295,7 @@ fn render_parent_dom(parent: Option<&dyn Query>, document: &DioxusDocument) -> S
 /// }
 ///
 /// # async fn test_fn() {
-/// let tester = render(MyComponent).build();
+/// let tester = render(MyComponent);
 /// tester
 ///     .query(by_role(Role::Button))
 ///     .click()

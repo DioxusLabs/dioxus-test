@@ -13,9 +13,9 @@ keywords = ["dom", "ui", "gui", "react", "testing"]
 accesskit = "0.24"
 blitz-dom = { version = "=0.3.0-beta.1", default-features = false }
 blitz-traits = { version = "=0.3.0-beta.1", default-features = false }
-dioxus-core = { version = "0.8.0-alpha.0", git = "https://github.com/dioxuslabs/dioxus" }
-dioxus-html = { version = "0.8.0-alpha.0", git = "https://github.com/dioxuslabs/dioxus" }
-dioxus-native-dom = { version = "0.8.0-alpha.0", git = "https://github.com/dioxuslabs/dioxus" }
+dioxus-core = { version = "0.8.0-alpha.0", git = "https://github.com/hovinen/dioxus", branch = "add-synthetic-form-event" }
+dioxus-html = { version = "0.8.0-alpha.0", git = "https://github.com/hovinen/dioxus", branch = "add-synthetic-form-event" }
+dioxus-native-dom = { version = "0.8.0-alpha.0", git = "https://github.com/hovinen/dioxus", branch = "add-synthetic-form-event" }
 smallvec = "1.15.2"
 stylo = { version = "0.19.0" }
 test-that = { version = "0.5.2", default-features = false, features = ["regex", "num-traits"] }
@@ -23,10 +23,10 @@ tokio = { version = "1.48", features = ["time"] }
 tracing = { version = "0.1.41" }
 
 [dev-dependencies]
-dioxus = { version = "0.8.0-alpha.0", git = "https://github.com/dioxuslabs/dioxus.git" }
+dioxus = { version = "0.8.0-alpha.0", git = "https://github.com/hovinen/dioxus.git", branch = "add-synthetic-form-event" }
 indoc = "2.0.7"
 tokio = { version = "1.48", features = ["rt", "macros"] }
 
 [patch.crates-io]
-blitz-dom = { git = "https://github.com/dioxuslabs/blitz" }
-blitz-traits = { git = "https://github.com/dioxuslabs/blitz" }
+blitz-dom = { git = "https://github.com/dioxuslabs/blitz", rev = "e4bc4675e99c17346c024a169f67107eee80a22" }
+blitz-traits = { git = "https://github.com/dioxuslabs/blitz", rev = "e4bc4675e99c17346c024a169f67107eee80a22" }
