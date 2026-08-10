@@ -1310,14 +1310,12 @@ mod tests {
             let mut value = use_signal(String::new);
             let mut counter = use_signal(|| 0);
             use_effect(move || {
-                println!("In effect handler");
                 value.set(format!("Counter value: {counter}"));
             });
             rsx! {
                 button {
                     "data-testid": "button",
                     onclick: move |_| {
-                        println!("In click handler");
                         counter.set(counter() + 1);
                     }
                 }
