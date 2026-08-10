@@ -91,8 +91,9 @@ impl DocumentTester {
         document.inner_mut().viewport_mut().window_size = self.window_size.unwrap_or((500, 800));
         document.initial_build();
         document.inner_mut().resolve(self.now);
-        // Process any effects which were triggered but not executed immediately during rendering.
-        document.vdom.process_events();
+        // Process any effects which were triggered but not executed immediately during rendering,
+        // and rerender the vdom to reflect any state changes they make.
+        while document.poll(None) {}
         drop(document);
         self
     }
@@ -1278,5 +1279,59 @@ mod tests {
             .query(by_testid("output"))
             .expect(inner_html(eq("A")))
             .await
+    }
+
+    #[tokio::test]
+    async fn effects_are_processed_when_rendering() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut value = use_signal(String::new);
+            use_effect(move || value.set("A value".into()));
+            rsx! {
+                div {
+                    "data-testid": "value",
+                    {value}
+                }
+            }
+        }
+
+        let tester = render(MyComponent).build();
+
+        tester
+            .query(by_testid("value"))
+            .expect(inner_html(eq("A value")))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn effects_are_processed_when_handling_an_event() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut value = use_signal(String::new);
+            let mut counter = use_signal(|| 0);
+            use_effect(move || {
+                value.set(format!("Counter value: {counter}"));
+            });
+            rsx! {
+                button {
+                    "data-testid": "button",
+                    onclick: move |_| {
+                        counter.set(counter() + 1);
+                    }
+                }
+                div {
+                    "data-testid": "value",
+                    {value}
+                }
+            }
+        }
+        let tester = render(MyComponent).build();
+
+        tester.query(by_testid("button")).click().await?;
+
+        tester
+            .query(by_testid("value"))
+            .expect(inner_html(eq("Counter value: 1")))
+            .immediately()
     }
 }
