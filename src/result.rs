@@ -42,7 +42,7 @@ impl std::fmt::Display for TesterError {
                 write!(f, "No such element with test ID `{id}`\nDOM is:\n{dom}")
             }
             TesterError::NoSuchElementWithRole(role, dom) => {
-                write!(f, "No such element with role `{role}`\nDOM is:\n{dom}")
+                write!(f, "No such element with role {role}\nDOM is:\n{dom}")
             }
             TesterError::NoSuchElementWithCssSelector(selector, dom) => {
                 write!(

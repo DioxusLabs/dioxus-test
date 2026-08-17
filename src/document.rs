@@ -89,7 +89,7 @@ impl DocumentTester {
     /// Performs a layout and build for the DOM managed by this tester.
     ///
     /// This method must be invoked before querying any elements.
-    fn build(&self) {
+    pub(crate) fn build(&self) {
         if self.built.get() {
             return;
         }

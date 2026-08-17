@@ -1,5 +1,8 @@
+mod aria_tree;
+
 use crate::TesterError;
-use accesskit::{Node, Role};
+use accesskit::Role;
+use aria_tree::AriaTree;
 use blitz_dom::{Document as _, SelectorList};
 use dioxus_native_dom::DioxusDocument;
 use smallvec::SmallVec;
@@ -304,40 +307,111 @@ fn render_parent_dom(parent: Option<&dyn Query>, document: &DioxusDocument) -> S
 /// # }
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
 /// ```
-pub fn by_role(role: Role) -> impl IntoQuery {
-    QueryByRole(role, None)
+pub fn by_role(role: Role) -> QueryByRole<'static> {
+    QueryByRole {
+        role,
+        name: None,
+        parent: None,
+    }
 }
 
 #[derive(Clone)]
-struct QueryByRole<'parent>(Role, Option<&'parent dyn Query>);
+#[doc(hidden)]
+pub struct QueryByRole<'parent> {
+    role: Role,
+    name: Option<String>,
+    parent: Option<&'parent dyn Query>,
+}
+
+impl<'parent> QueryByRole<'parent> {
+    /// Restricts this query to elements having the an accessible name containing the given value.
+    ///
+    /// See [W3C documentation](https://w3c.github.io/accname/#dfn-accessible-name) for information
+    /// on the accessible name of an element.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut output = use_signal(|| "");
+    ///     rsx! {
+    ///         button {
+    ///              onclick: move |_| {
+    ///                  output.set("Wrong button clicked")
+    ///              },
+    ///              "Do not click me!"
+    ///         }
+    ///         button {
+    ///              onclick: move |_| {
+    ///                  output.set("Right button clicked")
+    ///              },
+    ///              "Click me!"
+    ///         }
+    ///         div {
+    ///              "data-testid": "output",
+    ///              {output}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # async fn test_fn() {
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::Button).having_name("Click me!"))
+    ///     .click()
+    ///     .await
+    ///     .unwrap();
+    ///
+    /// tester
+    ///     .query(by_testid("output"))
+    ///     .expect(inner_html(eq("Right button clicked")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+    /// ```
+    pub fn having_name(self, name: impl Into<String>) -> Self {
+        Self {
+            name: Some(name.into()),
+            ..self
+        }
+    }
+}
 
 impl<'parent> Query for QueryByRole<'parent> {
     fn get_first_element(&self, document: &DioxusDocument) -> Option<usize> {
-        let tree = document.inner.borrow().build_accessibility_tree();
+        let aria_tree = AriaTree::for_document(document);
         let starting_node_id = self.get_starting_node_id(document)?;
-        self.find_first_element_starting_at(accesskit::NodeId(starting_node_id as u64), &tree.nodes)
+        self.find_first_element_starting_at(accesskit::NodeId(starting_node_id as u64), &aria_tree)
     }
 
     fn get_all_elements(&self, document: &DioxusDocument) -> Vec<usize> {
-        let tree = document.inner.borrow().build_accessibility_tree();
+        let aria_tree = AriaTree::for_document(document);
         let Some(starting_node_id) = self.get_starting_node_id(document) else {
             return vec![];
         };
-        self.find_all_elements_starting_at(accesskit::NodeId(starting_node_id as u64), &tree.nodes)
+        self.find_all_elements_starting_at(accesskit::NodeId(starting_node_id as u64), &aria_tree)
     }
 
     fn render_parent_dom(&self, document: &DioxusDocument) -> String {
-        render_parent_dom(self.1, document)
+        render_parent_dom(self.parent, document)
     }
 
     fn describe_failure(&self, document: &DioxusDocument) -> TesterError {
-        if let Some(parent) = self.1
+        if let Some(parent) = self.parent
             && parent.get_first_element(document).is_none()
         {
             parent.describe_failure(document)
         } else {
+            let extra = if let Some(name) = &self.name {
+                format!(" having accessible name `{name}`")
+            } else {
+                String::new()
+            };
             TesterError::NoSuchElementWithRole(
-                format!("{:?}", self.0),
+                format!("{:?}{extra}", self.role),
                 self.render_parent_dom(document),
             )
         }
@@ -346,7 +420,7 @@ impl<'parent> Query for QueryByRole<'parent> {
 
 impl<'parent> QueryByRole<'parent> {
     fn get_starting_node_id(&self, document: &DioxusDocument) -> Option<usize> {
-        if let Some(parent) = &self.1 {
+        if let Some(parent) = &self.parent {
             parent.get_first_element(document)
         } else {
             Some(document.inner.borrow().root_node().id)
@@ -356,47 +430,60 @@ impl<'parent> QueryByRole<'parent> {
     fn find_first_element_starting_at(
         &self,
         node_id: accesskit::NodeId,
-        nodes: &[(accesskit::NodeId, Node)],
+        aria_tree: &AriaTree,
     ) -> Option<usize> {
-        let (_, node) = nodes.iter().find(|(id, _)| id.0 == node_id.0)?;
-        if node.role() == self.0 {
+        let node = aria_tree.get_node(node_id)?;
+        if self.element_matches(node, aria_tree) {
             Some(node_id.0 as usize)
         } else {
             node.children()
                 .iter()
-                .find_map(|child_id| self.find_first_element_starting_at(*child_id, nodes))
+                .find_map(|child_id| self.find_first_element_starting_at(*child_id, aria_tree))
         }
     }
 
     fn find_all_elements_starting_at(
         &self,
         node_id: accesskit::NodeId,
-        nodes: &[(accesskit::NodeId, Node)],
+        aria_tree: &AriaTree,
     ) -> Vec<usize> {
-        let Some((_, node)) = nodes.iter().find(|(id, _)| id.0 == node_id.0) else {
+        let Some(node) = aria_tree.get_node(node_id) else {
             return vec![];
         };
         let mut result: Vec<_> = node
             .children()
             .iter()
-            .flat_map(|child_id| self.find_all_elements_starting_at(*child_id, nodes))
+            .flat_map(|child_id| self.find_all_elements_starting_at(*child_id, aria_tree))
             .collect();
-        if node.role() == self.0 {
+        if self.element_matches(node, aria_tree) {
             result.push(node_id.0 as usize)
         }
         result
+    }
+
+    fn element_matches(&self, node: &accesskit::Node, aria_tree: &AriaTree) -> bool {
+        if node.role() != self.role {
+            false
+        } else if let Some(name) = &self.name {
+            aria_tree.compute_accessible_name(node).contains(name)
+        } else {
+            true
+        }
     }
 }
 
 impl<'parent> ParentableQuery for QueryByRole<'parent> {
     fn with_parent(self, parent: &dyn Query) -> impl ParentableQuery + Clone {
-        QueryByRole(self.0, Some(parent))
+        QueryByRole {
+            parent: Some(parent),
+            ..self
+        }
     }
 }
 
 impl<'parent> std::fmt::Display for QueryByRole<'parent> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, r#"role="{:?}"#, self.0)
+        write!(f, r#"role="{:?}"#, self.role)
     }
 }
 
