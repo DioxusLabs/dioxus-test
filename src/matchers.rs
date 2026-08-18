@@ -47,7 +47,7 @@ pub fn inner_html(inner: impl Matcher<String>) -> impl Matcher<ResolvedElement> 
 ///         }
 ///     }
 /// }
-/// let tester = render(TestComponent).build();
+/// let tester = render(TestComponent);
 /// tester.query(by_testid("item"))
 ///     .expect(attribute("my-attribute", some(eq("A value"))))
 ///     .immediately()
@@ -67,7 +67,7 @@ pub fn inner_html(inner: impl Matcher<String>) -> impl Matcher<ResolvedElement> 
 ///         }
 ///     }
 /// }
-/// let tester = render(TestComponent).build();
+/// let tester = render(TestComponent);
 /// tester.query(by_testid("item"))
 ///     .expect(attribute("my-attribute", none()))
 ///     .immediately()
@@ -114,7 +114,7 @@ pub fn attribute(
 ///     }
 /// }
 /// # async fn run_test() {
-/// let tester = render(MyComponent).build();
+/// let tester = render(MyComponent);
 ///
 /// tester.query(by_testid("input")).focus().await.unwrap();
 ///
@@ -164,7 +164,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(TestComponent).build();
+        let tester = render(TestComponent);
 
         tester
             .query(by_testid("item"))
@@ -183,7 +183,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(TestComponent).build();
+        let tester = render(TestComponent);
 
         let result = tester
             .query(by_testid("item"))
@@ -203,7 +203,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(TestComponent).build();
+        let tester = render(TestComponent);
 
         let result = tester
             .query(by_testid("item"))
@@ -225,7 +225,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(TestComponent).build();
+        let tester = render(TestComponent);
 
         let result = tester
             .query(by_testid("item"))
