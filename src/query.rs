@@ -483,7 +483,11 @@ impl<'parent> ParentableQuery for QueryByRole<'parent> {
 
 impl<'parent> std::fmt::Display for QueryByRole<'parent> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, r#"role="{:?}"#, self.role)
+        write!(f, r#"role="{:?}""#, self.role)?;
+        if let Some(name) = &self.name {
+            write!(f, r#" having name "{name}""#)?;
+        }
+        Ok(())
     }
 }
 
