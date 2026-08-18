@@ -106,6 +106,7 @@ mod tests {
             DocumentTester, ResolvedElement, by_role, by_testid, query::aria_tree::AriaTree, render,
         };
         use accesskit::Role;
+        use blitz_dom::Document as _;
         use dioxus::prelude::*;
         use std::ops::Deref;
         use test_that::prelude::*;
@@ -187,10 +188,11 @@ mod tests {
             aria_tree: &'nodes AriaTree,
             element: &ResolvedElement,
         ) -> &'nodes accesskit::Node {
-            let accesskit_node_id = match element.node_id {
-                crate::element::NodeId::Root => unimplemented!(),
-                crate::element::NodeId::Node(id) => accesskit::NodeId(id as u64),
-            };
+            let accesskit_node_id = accesskit::NodeId(
+                element
+                    .node_id
+                    .into_raw_id(&element.document.borrow().inner()) as u64,
+            );
             aria_tree
                 .get_node(accesskit_node_id)
                 .expect("Node must be present")

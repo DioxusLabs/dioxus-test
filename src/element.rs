@@ -1,5 +1,5 @@
 use crate::TesterError;
-use blitz_dom::{DocGuard, Document as _, Node, Point};
+use blitz_dom::{BaseDocument, Document as _, Node, Point};
 use blitz_traits::events::BlitzFocusEvent;
 use dioxus_core::{ElementId, Event};
 use dioxus_html::{
@@ -9,6 +9,7 @@ use dioxus_html::{
 use dioxus_native_dom::{DioxusDocument, synthetic_click_event, synthetic_form_event};
 use std::{
     cell::{RefCell, RefMut},
+    ops::Deref,
     rc::Rc,
 };
 
@@ -242,12 +243,10 @@ impl ResolvedElement {
 
     pub(crate) fn has_focus(&self) -> bool {
         let document = self.document.borrow();
-        let base_document = document.inner.borrow();
+        let base_document = document.inner();
         let focus_node_id = base_document.get_focussed_node_id();
-        match self.node_id {
-            NodeId::Root => focus_node_id == Some(base_document.root_node().id),
-            NodeId::Node(node_id) => focus_node_id == Some(node_id),
-        }
+        let this_node_id = self.node_id.into_raw_id(&base_document);
+        focus_node_id == Some(this_node_id)
     }
 }
 
@@ -266,7 +265,17 @@ pub(crate) enum NodeId {
 }
 
 impl NodeId {
-    fn resolve<'doc>(self, document: &'doc DocGuard<'doc>) -> &'doc Node {
+    pub(crate) fn into_raw_id<T: Deref<Target = BaseDocument>>(self, document: &T) -> usize {
+        match self {
+            NodeId::Root => document.root_node().id,
+            NodeId::Node(node_id) => node_id,
+        }
+    }
+
+    fn resolve<'doc, T: Deref<Target = BaseDocument> + 'doc>(
+        self,
+        document: &'doc T,
+    ) -> &'doc Node {
         match self {
             NodeId::Root => document.root_element(),
             NodeId::Node(node_id) => document
@@ -276,13 +285,12 @@ impl NodeId {
     }
 }
 
-fn change_focus(guard: RefMut<DioxusDocument>, new_focus_node_id: NodeId) {
-    let new_focus_id = match new_focus_node_id {
-        NodeId::Root => guard.inner.borrow().root_node().id,
-        NodeId::Node(id) => id,
-    };
-    let old_focus_id = guard.inner.borrow().get_focussed_node_id();
-    guard.inner.borrow_mut().set_focus_to(new_focus_id);
+fn change_focus(mut guard: RefMut<DioxusDocument>, new_focus_node_id: NodeId) {
+    let mut base_document = guard.inner_mut();
+    let new_focus_id = new_focus_node_id.into_raw_id(&base_document);
+    let old_focus_id = base_document.get_focussed_node_id();
+    base_document.set_focus_to(new_focus_id);
+    drop(base_document);
     if let Some(old_focus_id) = old_focus_id
         && let Some(element_id) = get_element_id(&guard.inner(), NodeId::Node(old_focus_id))
     {
@@ -323,7 +331,7 @@ fn change_focus(guard: RefMut<DioxusDocument>, new_focus_node_id: NodeId) {
     }
 }
 
-fn get_element_id(guard: &DocGuard<'_>, node_id: NodeId) -> Option<ElementId> {
+fn get_element_id(guard: &impl Deref<Target = BaseDocument>, node_id: NodeId) -> Option<ElementId> {
     let element_data = node_id.resolve(guard).element_data()?;
     let attr = element_data
         .attrs
