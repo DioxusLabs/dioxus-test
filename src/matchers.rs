@@ -133,6 +133,22 @@ pub fn has_focus() -> impl Matcher<ResolvedElement> {
         fn matches(&self, actual: &ResolvedElement) -> MatcherResult {
             actual.has_focus().into()
         }
+
+        fn explain_match(&self, actual: &ResolvedElement) -> Description {
+            match self.matches(actual) {
+                MatcherResult::Match => "which has keyboard focus".into(),
+                MatcherResult::NoMatch => Description::new()
+                    .text("which does not have keyboard focus")
+                    .nested(if let Some(focus_node_html) = actual.focus_node_html() {
+                        Description::new()
+                            .text("Element with focus is:")
+                            .indent()
+                            .text(focus_node_html)
+                    } else {
+                        Description::new().text("No element has focus")
+                    }),
+            }
+        }
     }
 
     impl Describable for HasFocusMatcher {

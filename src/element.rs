@@ -248,6 +248,14 @@ impl ResolvedElement {
         let this_node_id = self.node_id.into_raw_id(&base_document);
         focus_node_id == Some(this_node_id)
     }
+
+    pub(crate) fn focus_node_html(&self) -> Option<String> {
+        let document = self.document.borrow();
+        let base_document = document.inner();
+        let focus_node_id = base_document.get_focussed_node_id()?;
+        let focus_node = base_document.get_node(focus_node_id)?;
+        Some(focus_node.outer_html_pretty())
+    }
 }
 
 impl std::fmt::Debug for ResolvedElement {
