@@ -47,7 +47,7 @@ pub fn inner_html(inner: impl Matcher<String>) -> impl Matcher<ResolvedElement> 
 ///         }
 ///     }
 /// }
-/// let tester = render(TestComponent).build();
+/// let tester = render(TestComponent);
 /// tester.query(by_testid("item"))
 ///     .expect(attribute("my-attribute", some(eq("A value"))))
 ///     .immediately()
@@ -67,7 +67,7 @@ pub fn inner_html(inner: impl Matcher<String>) -> impl Matcher<ResolvedElement> 
 ///         }
 ///     }
 /// }
-/// let tester = render(TestComponent).build();
+/// let tester = render(TestComponent);
 /// tester.query(by_testid("item"))
 ///     .expect(attribute("my-attribute", none()))
 ///     .immediately()
@@ -114,7 +114,7 @@ pub fn attribute(
 ///     }
 /// }
 /// # async fn run_test() {
-/// let tester = render(MyComponent).build();
+/// let tester = render(MyComponent);
 ///
 /// tester.query(by_testid("input")).focus().await.unwrap();
 ///
@@ -132,6 +132,22 @@ pub fn has_focus() -> impl Matcher<ResolvedElement> {
     impl Matcher<ResolvedElement> for HasFocusMatcher {
         fn matches(&self, actual: &ResolvedElement) -> MatcherResult {
             actual.has_focus().into()
+        }
+
+        fn explain_match(&self, actual: &ResolvedElement) -> Description {
+            match self.matches(actual) {
+                MatcherResult::Match => "which has keyboard focus".into(),
+                MatcherResult::NoMatch => Description::new()
+                    .text("which does not have keyboard focus")
+                    .nested(if let Some(focus_node_html) = actual.focus_node_html() {
+                        Description::new()
+                            .text("Element with focus is:")
+                            .indent()
+                            .text(focus_node_html)
+                    } else {
+                        Description::new().text("No element has focus")
+                    }),
+            }
         }
     }
 
@@ -164,7 +180,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(TestComponent).build();
+        let tester = render(TestComponent);
 
         tester
             .query(by_testid("item"))
@@ -183,7 +199,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(TestComponent).build();
+        let tester = render(TestComponent);
 
         let result = tester
             .query(by_testid("item"))
@@ -203,7 +219,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(TestComponent).build();
+        let tester = render(TestComponent);
 
         let result = tester
             .query(by_testid("item"))
@@ -225,7 +241,7 @@ mod tests {
                 }
             }
         }
-        let tester = render(TestComponent).build();
+        let tester = render(TestComponent);
 
         let result = tester
             .query(by_testid("item"))

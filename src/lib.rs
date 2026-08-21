@@ -18,8 +18,7 @@
 //!
 //! Tests can construct a [DocumentTester] instance to render and interact with the DOM. To
 //! construct a [DocumentTester], the test can invoke the [render] function on a Dioxus component.
-//! They must invoke the `build` to trigger the initial layout. The tester provides methods for
-//! querying elements by CSS selector or by test ID.
+//! The tester provides methods for querying elements by CSS selector or by test ID.
 //!
 //! ```
 //! use dioxus::prelude::*;
@@ -39,7 +38,7 @@
 //! #[test]
 //! # */
 //! fn my_component_renders_correctly() {
-//!     let tester = render(MyComponent).build();
+//!     let tester = render(MyComponent);
 //!     tester
 //!         .query(".test-component")
 //!         .expect(inner_html(eq("Hello, world!")))
@@ -75,7 +74,7 @@
 //! #[tokio::test]
 //! # */
 //! async fn my_component_changes_button_text_on_click() {
-//!     let tester = render(MyComponent).build();
+//!     let tester = render(MyComponent);
 //!     tester.query(".test-button").click().await;
 //!     tester
 //!         .query(".test-button")
@@ -112,7 +111,7 @@
 //!
 //! #[tokio::test]
 //! async fn my_component_changes_button_text_on_click() {
-//!     let tester = render(MyComponent).build();
+//!     let tester = render(MyComponent);
 //!     tester.query(".test-button").click().await;
 //!     tester.pump().await;
 //!     tester
