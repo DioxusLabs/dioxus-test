@@ -351,7 +351,7 @@ impl DocumentTester {
         Ok(())
     }
 
-    pub(crate) fn build_resolved_element(&self, id: usize) -> ResolvedElement {
+    pub(crate) fn build_resolved_element(&self, id: blitz_dom::NodeId) -> ResolvedElement {
         ResolvedElement {
             document: self.document.clone(),
             node_id: NodeId::Node(id),

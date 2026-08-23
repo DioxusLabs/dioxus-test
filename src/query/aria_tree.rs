@@ -191,7 +191,8 @@ mod tests {
             let accesskit_node_id = accesskit::NodeId(
                 element
                     .node_id
-                    .into_raw_id(&element.document.borrow().inner()) as u64,
+                    .into_raw_id(&element.document.borrow().inner())
+                    .as_u64(),
             );
             aria_tree
                 .get_node(accesskit_node_id)

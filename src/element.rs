@@ -145,8 +145,8 @@ impl ResolvedElement {
         let document = guard.inner();
         let node = self.node_id.resolve(&document);
         let upper_left = Point {
-            x: node.final_layout.location.x,
-            y: node.final_layout.location.y,
+            x: node.final_layout().location.x,
+            y: node.final_layout().location.y,
         };
         Coordinates::new(
             Self::to_point2d(upper_left),
@@ -162,10 +162,10 @@ impl ResolvedElement {
         let document = guard.inner();
         let node = self.node_id.resolve(&document);
         let mut upper_right = Point {
-            x: node.final_layout.location.x,
-            y: node.final_layout.location.y,
+            x: node.final_layout().location.x,
+            y: node.final_layout().location.y,
         };
-        upper_right.x += node.final_layout.content_box_width();
+        upper_right.x += node.final_layout().content_box_width();
         Coordinates::new(
             Self::to_point2d(upper_right),
             Self::to_point2d(upper_right),
@@ -180,10 +180,10 @@ impl ResolvedElement {
         let document = guard.inner();
         let node = self.node_id.resolve(&document);
         let mut lower_left = Point {
-            x: node.final_layout.location.x,
-            y: node.final_layout.location.y,
+            x: node.final_layout().location.x,
+            y: node.final_layout().location.y,
         };
-        lower_left.y += node.final_layout.content_box_height();
+        lower_left.y += node.final_layout().content_box_height();
         Coordinates::new(
             Self::to_point2d(lower_left),
             Self::to_point2d(lower_left),
@@ -198,11 +198,11 @@ impl ResolvedElement {
         let document = guard.inner();
         let node = self.node_id.resolve(&document);
         let mut lower_right = Point {
-            x: node.final_layout.location.x,
-            y: node.final_layout.location.y,
+            x: node.final_layout().location.x,
+            y: node.final_layout().location.y,
         };
-        lower_right.x += node.final_layout.content_box_width();
-        lower_right.y += node.final_layout.content_box_height();
+        lower_right.x += node.final_layout().content_box_width();
+        lower_right.y += node.final_layout().content_box_height();
         Coordinates::new(
             Self::to_point2d(lower_right),
             Self::to_point2d(lower_right),
@@ -220,8 +220,8 @@ impl ResolvedElement {
         let guard = self.document.borrow();
         let document = guard.inner();
         let node = self.node_id.resolve(&document);
-        let height = node.final_layout.content_box_height();
-        let width = node.final_layout.content_box_width();
+        let height = node.final_layout().content_box_height();
+        let width = node.final_layout().content_box_width();
         (width, height)
     }
 
@@ -269,11 +269,14 @@ impl std::fmt::Debug for ResolvedElement {
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum NodeId {
     Root,
-    Node(usize),
+    Node(blitz_dom::NodeId),
 }
 
 impl NodeId {
-    pub(crate) fn into_raw_id<T: Deref<Target = BaseDocument>>(self, document: &T) -> usize {
+    pub(crate) fn into_raw_id<T: Deref<Target = BaseDocument>>(
+        self,
+        document: &T,
+    ) -> blitz_dom::NodeId {
         match self {
             NodeId::Root => document.root_node().id,
             NodeId::Node(node_id) => node_id,
@@ -345,5 +348,5 @@ fn get_element_id(guard: &impl Deref<Target = BaseDocument>, node_id: NodeId) ->
         .attrs
         .iter()
         .find(|attr| *attr.name.local == *"data-dioxus-id")?;
-    Some(ElementId(attr.value.parse::<usize>().ok()?))
+    Some(ElementId::new(attr.value.parse::<usize>().ok()?))
 }
