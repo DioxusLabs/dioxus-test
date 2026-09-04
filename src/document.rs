@@ -148,6 +148,7 @@ impl DocumentTester {
         let mut document = self.document.borrow_mut();
         timeout(PUMP_TIMEOUT, document.vdom.wait_for_work()).await?;
         while document.poll(None) {}
+        document.inner_mut().resolve(self.now);
         Ok(())
     }
 
@@ -170,6 +171,7 @@ impl DocumentTester {
         ResolvedElement {
             document: self.document.clone(),
             node_id: NodeId::Root,
+            now: self.now,
         }
     }
 
@@ -294,6 +296,7 @@ impl DocumentTester {
         };
         let mut document = self.document_mut();
         document.handle_ui_event(UiEvent::KeyDown(event));
+        Self::resolve_effects_and_styles(document, self.now);
         Ok(())
     }
 
@@ -347,7 +350,9 @@ impl DocumentTester {
             state: KeyState::Released,
             text: None,
         };
-        self.document_mut().handle_ui_event(UiEvent::KeyUp(event));
+        let mut document = self.document_mut();
+        document.handle_ui_event(UiEvent::KeyUp(event));
+        Self::resolve_effects_and_styles(document, self.now);
         Ok(())
     }
 
@@ -355,6 +360,7 @@ impl DocumentTester {
         ResolvedElement {
             document: self.document.clone(),
             node_id: NodeId::Node(id),
+            now: self.now,
         }
     }
 
@@ -364,6 +370,16 @@ impl DocumentTester {
 
     fn document_mut(&self) -> RefMut<'_, DioxusDocument> {
         self.document.borrow_mut()
+    }
+
+    /// Processes any effects immediately triggered by an event handler and re-resolve stye and
+    /// layout.
+    ///
+    /// This must run at the end of any event handler to ensure that any immediate effects of that
+    /// handler are reflected in the DOM.
+    pub(crate) fn resolve_effects_and_styles(mut document: RefMut<'_, DioxusDocument>, now: f64) {
+        while document.poll(None) {}
+        document.inner_mut().resolve(now);
     }
 }
 
@@ -1363,6 +1379,89 @@ mod tests {
         tester
             .query(by_testid("value"))
             .expect(inner_html(eq("Counter value: 1")))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn styles_are_recomputed_when_handling_an_event_on_the_element() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut hidden = use_signal(|| true);
+            rsx! {
+                button {
+                    "data-testid": "button",
+                    onclick: move |_| {
+                        hidden.set(false);
+                    }
+                }
+                div {
+                    "hidden": if *hidden.read() { "true" }
+                }
+            }
+        }
+        let tester = render(MyComponent);
+
+        tester.query(by_testid("button")).click().await?;
+
+        tester
+            .query_all(by_role(Role::GenericContainer))
+            .expect(len(gt(0)))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn styles_are_recomputed_when_handling_key_down_event() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut hidden = use_signal(|| true);
+            rsx! {
+                div {
+                    "data-testid": "input",
+                    onkeydown: move |_| {
+                        hidden.set(false);
+                    }
+                }
+                h1 {
+                    "hidden": if *hidden.read() { "true" }
+                }
+            }
+        }
+        let tester = render(MyComponent);
+
+        tester.query(by_testid("input")).focus().await?;
+        tester.key_down(Key::Character("A".into()), Modifiers::empty())?;
+
+        tester
+            .query_all(by_role(Role::Heading))
+            .expect(len(gt(0)))
+            .immediately()
+    }
+
+    #[tokio::test]
+    async fn styles_are_recomputed_when_handling_key_up_event() -> crate::Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut hidden = use_signal(|| true);
+            rsx! {
+                div {
+                    "data-testid": "input",
+                    onkeyup: move |_| {
+                        hidden.set(false);
+                    }
+                }
+                h1 {
+                    "hidden": if *hidden.read() { "true" }
+                }
+            }
+        }
+        let tester = render(MyComponent);
+
+        tester.query(by_testid("input")).focus().await?;
+        tester.key_up(Key::Character("A".into()), Modifiers::empty())?;
+
+        tester
+            .query_all(by_role(Role::Heading))
+            .expect(len(gt(0)))
             .immediately()
     }
 

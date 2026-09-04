@@ -1,4 +1,4 @@
-use crate::TesterError;
+use crate::{DocumentTester, TesterError};
 use blitz_dom::{BaseDocument, Document as _, Node, Point};
 use blitz_traits::events::BlitzFocusEvent;
 use dioxus_core::{ElementId, Event};
@@ -20,6 +20,7 @@ use std::{
 pub struct ResolvedElement {
     pub(crate) document: Rc<RefCell<DioxusDocument>>,
     pub(crate) node_id: NodeId,
+    pub(crate) now: f64,
 }
 
 impl ResolvedElement {
@@ -91,14 +92,12 @@ impl ResolvedElement {
                 self.outer_html(),
             ));
         };
-        let mut document = self.document.borrow_mut();
+        let document = self.document.borrow_mut();
         document
             .vdom
             .runtime()
             .handle_event(name, Event::new(event.data, propagates), element_id);
-        // Process any effects which were triggered but not executed immediately during rendering,
-        // and rerender the vdom to reflect any state changes they make.
-        while document.poll(None) {}
+        DocumentTester::resolve_effects_and_styles(document, self.now);
         Ok(())
     }
 
