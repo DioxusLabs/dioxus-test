@@ -147,8 +147,7 @@ impl DocumentTester {
     pub async fn pump(&self) -> Result<(), Elapsed> {
         let mut document = self.document.borrow_mut();
         timeout(PUMP_TIMEOUT, document.vdom.wait_for_work()).await?;
-        while document.poll(None) {}
-        document.inner_mut().resolve(self.now);
+        Self::resolve_effects_and_styles(document, self.now);
         Ok(())
     }
 
