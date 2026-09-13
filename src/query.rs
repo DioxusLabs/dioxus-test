@@ -16,10 +16,10 @@ use style::dom_apis::{MayUseInvalidation, QueryAll, QueryFirst, query_selector};
 /// function [by_testid].
 pub trait Query: ToString {
     /// Returns the node ID of the first element in DOM order matching this query.
-    fn get_first_element(&self, document: &DioxusDocument) -> Option<usize>;
+    fn get_first_element(&self, document: &DioxusDocument) -> Option<blitz_dom::NodeId>;
 
     /// Returns the node IDs of all elements matching this query.
-    fn get_all_elements(&self, document: &DioxusDocument) -> Vec<usize>;
+    fn get_all_elements(&self, document: &DioxusDocument) -> Vec<blitz_dom::NodeId>;
 
     /// Constructs a [TesterError] representing this query failing to match an element.
     fn describe_failure(&self, document: &DioxusDocument) -> TesterError;
@@ -72,14 +72,14 @@ impl<'parent, T: std::fmt::Display> std::fmt::Display for CssSelectorQuery<'pare
 }
 
 impl<'parent, T: AsRef<str> + std::fmt::Display + Clone> Query for CssSelectorQuery<'parent, T> {
-    fn get_first_element(&self, document: &DioxusDocument) -> Option<usize> {
+    fn get_first_element(&self, document: &DioxusDocument) -> Option<blitz_dom::NodeId> {
         let selector_list = self
             .parse_css_selector_to_query(document)
             .expect("Error parsing CSS selector");
         get_first_element_with_selector(document, selector_list, self.1)
     }
 
-    fn get_all_elements(&self, document: &DioxusDocument) -> Vec<usize> {
+    fn get_all_elements(&self, document: &DioxusDocument) -> Vec<blitz_dom::NodeId> {
         let selector_list = self
             .parse_css_selector_to_query(document)
             .expect("Error parsing CSS selector");
@@ -163,12 +163,12 @@ pub fn by_testid(testid: impl AsRef<str>) -> impl IntoQuery {
 struct QueryByTestId<'parent>(String, Option<&'parent dyn Query>);
 
 impl<'parent> Query for QueryByTestId<'parent> {
-    fn get_first_element(&self, document: &DioxusDocument) -> Option<usize> {
+    fn get_first_element(&self, document: &DioxusDocument) -> Option<blitz_dom::NodeId> {
         let selector_list = self.create_selector(document);
         get_first_element_with_selector(document, selector_list, self.1)
     }
 
-    fn get_all_elements(&self, document: &DioxusDocument) -> Vec<usize> {
+    fn get_all_elements(&self, document: &DioxusDocument) -> Vec<blitz_dom::NodeId> {
         let selector_list = self.create_selector(document);
         get_all_elements_with_selector(document, selector_list, self.1)
     }
@@ -221,7 +221,7 @@ fn get_first_element_with_selector(
     document: &DioxusDocument,
     selector_list: SelectorList,
     parent: Option<&dyn Query>,
-) -> Option<usize> {
+) -> Option<blitz_dom::NodeId> {
     let doc_guard = document.inner();
     let start_node = if let Some(parent) = parent {
         doc_guard.get_node(parent.get_first_element(document)?)?
@@ -242,7 +242,7 @@ fn get_all_elements_with_selector(
     document: &DioxusDocument,
     selector_list: SelectorList,
     parent: Option<&dyn Query>,
-) -> Vec<usize> {
+) -> Vec<blitz_dom::NodeId> {
     let doc_guard = document.inner();
     let start_node = if let Some(parent) = parent {
         let Some(parent_node_id) = parent.get_first_element(document) else {
@@ -381,18 +381,21 @@ impl<'parent> QueryByRole<'parent> {
 }
 
 impl<'parent> Query for QueryByRole<'parent> {
-    fn get_first_element(&self, document: &DioxusDocument) -> Option<usize> {
+    fn get_first_element(&self, document: &DioxusDocument) -> Option<blitz_dom::NodeId> {
         let aria_tree = AriaTree::for_document(document);
         let starting_node_id = self.get_starting_node_id(document)?;
-        self.find_first_element_starting_at(accesskit::NodeId(starting_node_id as u64), &aria_tree)
+        self.find_first_element_starting_at(
+            accesskit::NodeId(starting_node_id.as_u64()),
+            &aria_tree,
+        )
     }
 
-    fn get_all_elements(&self, document: &DioxusDocument) -> Vec<usize> {
+    fn get_all_elements(&self, document: &DioxusDocument) -> Vec<blitz_dom::NodeId> {
         let aria_tree = AriaTree::for_document(document);
         let Some(starting_node_id) = self.get_starting_node_id(document) else {
             return vec![];
         };
-        self.find_all_elements_starting_at(accesskit::NodeId(starting_node_id as u64), &aria_tree)
+        self.find_all_elements_starting_at(accesskit::NodeId(starting_node_id.as_u64()), &aria_tree)
     }
 
     fn render_parent_dom(&self, document: &DioxusDocument) -> String {
@@ -419,7 +422,7 @@ impl<'parent> Query for QueryByRole<'parent> {
 }
 
 impl<'parent> QueryByRole<'parent> {
-    fn get_starting_node_id(&self, document: &DioxusDocument) -> Option<usize> {
+    fn get_starting_node_id(&self, document: &DioxusDocument) -> Option<blitz_dom::NodeId> {
         if let Some(parent) = &self.parent {
             parent.get_first_element(document)
         } else {
@@ -431,10 +434,10 @@ impl<'parent> QueryByRole<'parent> {
         &self,
         node_id: accesskit::NodeId,
         aria_tree: &AriaTree,
-    ) -> Option<usize> {
+    ) -> Option<blitz_dom::NodeId> {
         let node = aria_tree.get_node(node_id)?;
         if self.element_matches(node, aria_tree) {
-            Some(node_id.0 as usize)
+            Some(blitz_dom::NodeId::from_u64(node_id.0))
         } else {
             node.children()
                 .iter()
@@ -446,7 +449,7 @@ impl<'parent> QueryByRole<'parent> {
         &self,
         node_id: accesskit::NodeId,
         aria_tree: &AriaTree,
-    ) -> Vec<usize> {
+    ) -> Vec<blitz_dom::NodeId> {
         let Some(node) = aria_tree.get_node(node_id) else {
             return vec![];
         };
@@ -456,7 +459,7 @@ impl<'parent> QueryByRole<'parent> {
             .flat_map(|child_id| self.find_all_elements_starting_at(*child_id, aria_tree))
             .collect();
         if self.element_matches(node, aria_tree) {
-            result.push(node_id.0 as usize)
+            result.push(blitz_dom::NodeId::from_u64(node_id.0))
         }
         result
     }

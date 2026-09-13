@@ -556,7 +556,7 @@ impl<'vdom, Q: Query> EventLoopDriver for ElementCondition<'vdom, Q> {
 }
 
 impl<'vdom, Q: Query> Waitable for ElementCondition<'vdom, Q> {
-    type Output = usize;
+    type Output = blitz_dom::NodeId;
 
     fn check(&self) -> ControlFlow<Self::Output> {
         if let Some(element) = self.query.get_first_element(&self.data.document()) {
