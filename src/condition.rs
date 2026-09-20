@@ -622,7 +622,7 @@ impl<'vdom, Q: Query + 'vdom> IntoFuture for ElementCondition<'vdom, Q> {
 ///
 /// ```
 /// use dioxus::prelude::*;
-/// use dioxus_test::{matchers::{empty, eq, inner_html, not}, render};
+/// use dioxus_test::{matchers::{eq, inner_html, is_empty, not}, render};
 ///
 /// #[component]
 /// fn MyComponent() -> Element {
@@ -640,9 +640,9 @@ impl<'vdom, Q: Query + 'vdom> IntoFuture for ElementCondition<'vdom, Q> {
 /// async fn my_component_renders_correctly() {
 ///     let tester = render(MyComponent);
 ///
-///     tester.query_all(".test-component").expect(not(empty())).immediately().unwrap();
+///     tester.query_all(".test-component").expect(not(is_empty())).immediately().unwrap();
 ///
-///     tester.query_all(".this-selector-does-not-exist").expect(empty()).await.unwrap();
+///     tester.query_all(".this-selector-does-not-exist").expect(is_empty()).await.unwrap();
 /// }
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(my_component_renders_correctly());
 /// ```
@@ -652,7 +652,7 @@ impl<'vdom, Q: Query + 'vdom> IntoFuture for ElementCondition<'vdom, Q> {
 ///
 /// ```
 /// use dioxus::prelude::*;
-/// use dioxus_test::{matchers::{empty, eq, inner_html, not}, render};
+/// use dioxus_test::{matchers::{eq, inner_html, is_empty, not}, render};
 ///
 /// #[component]
 /// fn MyComponent() -> Element {
@@ -695,7 +695,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> AllElementsCondition<'vdom, Q> {
     ///
     /// ```
     /// use dioxus::prelude::*;
-    /// use dioxus_test::{matchers::{empty, eq, inner_html, not}, render};
+    /// use dioxus_test::{matchers::{eq, inner_html, is_empty, not}, render};
     ///
     /// #[component]
     /// fn MyComponent() -> Element {
@@ -714,7 +714,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> AllElementsCondition<'vdom, Q> {
     ///     let tester = render(MyComponent);
     ///     tester
     ///         .query_all(".test-component")
-    ///         .expect(not(empty()))
+    ///         .expect(not(is_empty()))
     ///         .immediately()
     ///         .unwrap();
     /// }
@@ -725,7 +725,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> AllElementsCondition<'vdom, Q> {
     ///
     /// ```
     /// use dioxus::prelude::*;
-    /// use dioxus_test::{matchers::{empty, eq, inner_html, not}, render};
+    /// use dioxus_test::{matchers::{eq, inner_html, is_empty, not}, render};
     ///
     /// #[component]
     /// fn MyComponent() -> Element {
@@ -744,7 +744,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> AllElementsCondition<'vdom, Q> {
     ///     let tester = render(MyComponent);
     ///     tester
     ///         .query_all(".test-component")
-    ///         .expect(not(empty()))
+    ///         .expect(not(is_empty()))
     ///         .await
     ///         .unwrap();
     /// }

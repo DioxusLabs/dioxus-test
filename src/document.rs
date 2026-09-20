@@ -673,7 +673,7 @@ mod tests {
 
         let result = tester
             .query_all(by_testid("the-label"))
-            .expect(empty())
+            .expect(is_empty())
             .immediately();
 
         verify_that!(
