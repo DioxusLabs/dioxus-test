@@ -279,7 +279,7 @@ dependencies = [
 [[package]]
 name = "const-serialize"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "const-serialize-macro",
  "dioxus-const-vec",
@@ -289,7 +289,7 @@ dependencies = [
 [[package]]
 name = "const-serialize-macro"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -538,7 +538,7 @@ dependencies = [
 [[package]]
 name = "dioxus"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dioxus-asset-resolver",
  "dioxus-cli-config",
@@ -563,7 +563,7 @@ dependencies = [
 [[package]]
 name = "dioxus-asset-resolver"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "jni",
  "ndk",
@@ -575,7 +575,7 @@ dependencies = [
 [[package]]
 name = "dioxus-cli-config"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "wasm-bindgen",
 ]
@@ -583,7 +583,7 @@ dependencies = [
 [[package]]
 name = "dioxus-config-macro"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -592,17 +592,17 @@ dependencies = [
 [[package]]
 name = "dioxus-config-macros"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 
 [[package]]
 name = "dioxus-const-vec"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 
 [[package]]
 name = "dioxus-core"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "anyhow",
  "const_format",
@@ -627,7 +627,7 @@ dependencies = [
 [[package]]
 name = "dioxus-core-macro"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "convert_case",
  "dioxus-rsx",
@@ -639,7 +639,7 @@ dependencies = [
 [[package]]
 name = "dioxus-core-template"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dioxus-const-vec",
  "serde",
@@ -649,12 +649,12 @@ dependencies = [
 [[package]]
 name = "dioxus-core-types"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 
 [[package]]
 name = "dioxus-devtools"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dioxus-cli-config",
  "dioxus-core",
@@ -671,7 +671,7 @@ dependencies = [
 [[package]]
 name = "dioxus-devtools-types"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dioxus-core",
  "serde",
@@ -681,7 +681,7 @@ dependencies = [
 [[package]]
 name = "dioxus-document"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dioxus-core",
  "dioxus-core-macro",
@@ -699,7 +699,7 @@ dependencies = [
 [[package]]
 name = "dioxus-history"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dioxus-core",
  "tracing",
@@ -708,7 +708,7 @@ dependencies = [
 [[package]]
 name = "dioxus-hooks"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dioxus-core",
  "dioxus-signals",
@@ -723,7 +723,7 @@ dependencies = [
 [[package]]
 name = "dioxus-html"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "async-trait",
  "bytes",
@@ -749,7 +749,7 @@ dependencies = [
 [[package]]
 name = "dioxus-html-internal-macro"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -760,7 +760,7 @@ dependencies = [
 [[package]]
 name = "dioxus-interpreter-js"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "js-sys",
  "lazy-js-bundle",
@@ -775,7 +775,7 @@ dependencies = [
 [[package]]
 name = "dioxus-logger"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dioxus-cli-config",
  "tracing",
@@ -786,7 +786,7 @@ dependencies = [
 [[package]]
 name = "dioxus-native-dom"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "blitz-dom",
  "blitz-traits",
@@ -800,7 +800,7 @@ dependencies = [
 [[package]]
 name = "dioxus-rsx"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dioxus-core-template",
  "proc-macro2",
@@ -813,7 +813,7 @@ dependencies = [
 [[package]]
 name = "dioxus-signals"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dioxus-core",
  "futures-channel",
@@ -828,7 +828,7 @@ dependencies = [
 [[package]]
 name = "dioxus-stores"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dioxus-core",
  "dioxus-signals",
@@ -839,7 +839,7 @@ dependencies = [
 [[package]]
 name = "dioxus-stores-macro"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -869,7 +869,7 @@ dependencies = [
 [[package]]
 name = "dioxus-web"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dioxus-cli-config",
  "dioxus-core",
@@ -1166,7 +1166,7 @@ dependencies = [
 [[package]]
 name = "generational-box"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "parking_lot",
  "tracing",
@@ -1563,7 +1563,7 @@ dependencies = [
 [[package]]
 name = "lazy-js-bundle"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 
 [[package]]
 name = "lazy_static"
@@ -1657,7 +1657,7 @@ dependencies = [
 [[package]]
 name = "manganis"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "const-serialize",
  "jni",
@@ -1671,7 +1671,7 @@ dependencies = [
 [[package]]
 name = "manganis-core"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "const-serialize",
  "dioxus-cli-config",
@@ -1683,7 +1683,7 @@ dependencies = [
 [[package]]
 name = "manganis-macro"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "dunce",
  "macro-string",
@@ -2790,7 +2790,7 @@ dependencies = [
 [[package]]
 name = "subsecond"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "js-sys",
  "libc",
@@ -2808,7 +2808,7 @@ dependencies = [
 [[package]]
 name = "subsecond-types"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/hovinen/dioxus?branch=add-synthetic-form-event#54d7548c7439836dc621bf0063de89858bd5887b"
+source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
 dependencies = [
  "serde",
 ]
