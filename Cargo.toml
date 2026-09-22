@@ -10,7 +10,7 @@ homepage = "https://dioxuslabs.com/learn/0.7/getting_started"
 keywords = ["dom", "ui", "gui", "react", "testing"]
 
 [dependencies]
-accesskit = "0.24.1"
+accesskit = "0.25.0"
 blitz-dom = { git = "https://github.com/hovinen/blitz", branch = "support-aria-label-and-labelledby", default-features = false }
 blitz-traits = { git = "https://github.com/hovinen/blitz", branch = "support-aria-label-and-labelledby", default-features = false }
 dioxus-core = { git = "https://github.com/DioxusLabs/dioxus" }
