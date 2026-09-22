@@ -12,6 +12,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "accesskit"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "438a7081a65b95c668db56591a4fef9bc5dad275f448bd6223fc6949d823db38"
+dependencies = [
+ "uuid",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -109,7 +118,7 @@ name = "blitz-dom"
 version = "0.3.0-beta.2"
 source = "git+https://github.com/hovinen/blitz?branch=support-aria-label-and-labelledby#bfed93d2efaa352ae845805c66aae93da11ce004"
 dependencies = [
- "accesskit",
+ "accesskit 0.25.0",
  "anyrender",
  "app_units",
  "atomic_refcell",
@@ -848,7 +857,7 @@ dependencies = [
 name = "dioxus-test"
 version = "0.1.0"
 dependencies = [
- "accesskit",
+ "accesskit 0.24.1",
  "blitz-dom",
  "blitz-traits",
  "dioxus",
