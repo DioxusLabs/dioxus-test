@@ -91,7 +91,7 @@ pub fn attribute(
     impl<InnerMatcher: Describable> Describable for AttributeMatcher<InnerMatcher> {
         fn describe(&self, matcher_result: MatcherResult) -> test_that::description::Description {
             Description::new()
-                .text("Has inner HTML matching")
+                .text(format!("has an attribute `{}` matching", self.0))
                 .nested(self.1.describe(matcher_result))
         }
     }
@@ -249,5 +249,33 @@ mod tests {
             .immediately();
 
         verify_that!(result, err(anything()))
+    }
+
+    #[test]
+    fn attribute_mismatch_message_includes_name_of_attribute_and_failure_explanation()
+    -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div {
+                    "data-testid": "item",
+                    "my-attribute": "Arbitrary value",
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_testid("item"))
+            .expect(attribute("my-attribute", some(eq("A different value"))))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(all![
+                contains_substring("has an attribute `my-attribute` matching"),
+                contains_substring(r#"equal to "A different value""#)
+            ]))
+        )
     }
 }
