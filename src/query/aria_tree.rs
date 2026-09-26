@@ -37,7 +37,7 @@ impl AriaTree {
     // sets the target element's `labelled_by` accordingly. Without these features, there is no
     // meaningful way to test the corresponding implementation in this crate.
     pub(super) fn compute_accessible_name(&self, node: &Node) -> String {
-        self.compute_accessible_name_recursively(node, false)
+        self.compute_accessible_name_recursively(node, false, true)
             .unwrap_or_default()
     }
 
@@ -45,8 +45,21 @@ impl AriaTree {
         &self,
         node: &Node,
         always_allow_name_from_content: bool,
+        allow_labelled_by: bool,
     ) -> Option<String> {
-        if (always_allow_name_from_content || Self::supports_name_from_content(node.role()))
+        if let Some(label) = node.label() {
+            Some(label.to_string())
+        } else if allow_labelled_by && !node.labelled_by().is_empty() {
+            let components: Vec<_> = node
+                .labelled_by()
+                .iter()
+                .filter_map(|node_id| {
+                    let node = self.nodes_by_node_id.get(node_id)?;
+                    self.compute_accessible_name_recursively(node, true, false)
+                })
+                .collect();
+            Some(components.join(" "))
+        } else if (always_allow_name_from_content || Self::supports_name_from_content(node.role()))
             && let Some(text_content) = self.get_text_content(node)
         {
             Some(text_content)
@@ -89,7 +102,7 @@ impl AriaTree {
             .children()
             .iter()
             .filter_map(|child_id| self.nodes_by_node_id.get(child_id))
-            .filter_map(|child| self.compute_accessible_name_recursively(child, true))
+            .filter_map(|child| self.compute_accessible_name_recursively(child, true, true))
             .collect();
         if !parts.is_empty() {
             Some(parts.join(" "))
@@ -163,7 +176,6 @@ mod tests {
                 rsx! {
                     div {
                         "data-testid": "node",
-                        "Text node content"
                     }
                 }
             }
@@ -177,6 +189,55 @@ mod tests {
             let result = aria_tree.compute_accessible_name(starting_node);
 
             verify_that!(result, eq(""))
+        }
+
+        #[test]
+        fn obtains_name_from_aria_label() -> TestResult<()> {
+            #[component]
+            fn TestComponent() -> Element {
+                rsx! {
+                    button {
+                        "aria-label": "Button label",
+                        "Text node content"
+                    }
+                }
+            }
+            let tester = render(TestComponent);
+            let aria_tree = build_aria_tree(&tester);
+            let starting_node = get_accesskit_node_of_element(
+                &aria_tree,
+                &tester.query(by_role(Role::Button)).immediately()?,
+            );
+
+            let result = aria_tree.compute_accessible_name(starting_node);
+
+            verify_that!(result, eq("Button label"))
+        }
+
+        #[test]
+        fn obtains_name_from_aria_labelledby() -> TestResult<()> {
+            #[component]
+            fn TestComponent() -> Element {
+                rsx! {
+                    button {
+                        "aria-labelledby": "label",
+                    }
+                    label {
+                        id: "label",
+                        "Button label"
+                    }
+                }
+            }
+            let tester = render(TestComponent);
+            let aria_tree = build_aria_tree(&tester);
+            let starting_node = get_accesskit_node_of_element(
+                &aria_tree,
+                &tester.query(by_role(Role::Button)).immediately()?,
+            );
+
+            let result = aria_tree.compute_accessible_name(starting_node);
+
+            verify_that!(result, eq("Button label"))
         }
 
         fn build_aria_tree(tester: &DocumentTester) -> AriaTree {
