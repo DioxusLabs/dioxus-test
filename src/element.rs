@@ -347,5 +347,5 @@ fn get_element_id(guard: &impl Deref<Target = BaseDocument>, node_id: NodeId) ->
         .attrs
         .iter()
         .find(|attr| *attr.name.local == *"data-dioxus-id")?;
-    Some(ElementId::new(attr.value.parse::<usize>().ok()?))
+    Some(ElementId::from_raw(attr.value.parse::<usize>().ok()?))
 }
