@@ -74,7 +74,7 @@ checksum = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -107,7 +107,7 @@ dependencies = [
 [[package]]
 name = "blitz-dom"
 version = "0.3.0-beta.2"
-source = "git+https://github.com/hovinen/blitz?branch=support-aria-label-and-labelledby#bfed93d2efaa352ae845805c66aae93da11ce004"
+source = "git+https://github.com/hovinen/blitz?branch=support-aria-description-and-describedby#de87ad036f513392a15c5f2a6ba679a290c95f61"
 dependencies = [
  "accesskit",
  "anyrender",
@@ -151,7 +151,7 @@ dependencies = [
 [[package]]
 name = "blitz-traits"
 version = "0.3.0-beta.2"
-source = "git+https://github.com/hovinen/blitz?branch=support-aria-label-and-labelledby#bfed93d2efaa352ae845805c66aae93da11ce004"
+source = "git+https://github.com/hovinen/blitz?branch=support-aria-description-and-describedby#de87ad036f513392a15c5f2a6ba679a290c95f61"
 dependencies = [
  "atomic_refcell",
  "bitflags",
@@ -206,7 +206,7 @@ checksum = "f65693059b6b9c588b9f62fed1cedbf0a8b805631457ea162d68f0de186f3de5"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -277,7 +277,7 @@ dependencies = [
 [[package]]
 name = "const-serialize"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "const-serialize-macro",
  "dioxus-const-vec",
@@ -287,11 +287,11 @@ dependencies = [
 [[package]]
 name = "const-serialize-macro"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -388,9 +388,9 @@ dependencies = [
 
 [[package]]
 name = "cssparser"
-version = "0.37.0"
+version = "0.38.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c9cdaae01d5ed7882b04d795e7f752f46ff52d2fa3b50a20d28c464510bba98"
+checksum = "11119743ad110e8c1bdccd930d7f5c30c99e5fc76a7b63ec9807e84eef0c5f59"
 dependencies = [
  "cssparser-macros",
  "dtoa-short",
@@ -407,7 +407,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10a2a99df6e410a8ff4245aa2006499ea662245f967cc7c0a38c83ef8eb44dbf"
 dependencies = [
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -446,7 +446,7 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -459,7 +459,7 @@ dependencies = [
  "ident_case",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -470,7 +470,7 @@ checksum = "fc34b93ccb385b40dc71c6fceac4b2ad23662c7eeb248cf10d529b7e055b6ead"
 dependencies = [
  "darling_core 0.20.11",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -481,7 +481,7 @@ checksum = "d38308df82d1080de0afee5d069fa14b0326a88c14f15c5ccda35b4a6c414c81"
 dependencies = [
  "darling_core 0.21.3",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -499,7 +499,7 @@ checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
 [[package]]
 name = "debug_timer"
 version = "0.1.3"
-source = "git+https://github.com/hovinen/blitz?branch=support-aria-label-and-labelledby#bfed93d2efaa352ae845805c66aae93da11ce004"
+source = "git+https://github.com/hovinen/blitz?branch=support-aria-description-and-describedby#de87ad036f513392a15c5f2a6ba679a290c95f61"
 
 [[package]]
 name = "derive_more"
@@ -519,7 +519,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "rustc_version",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -535,7 +535,7 @@ dependencies = [
 [[package]]
 name = "dioxus"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dioxus-asset-resolver",
  "dioxus-cli-config",
@@ -560,7 +560,7 @@ dependencies = [
 [[package]]
 name = "dioxus-asset-resolver"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "jni",
  "ndk",
@@ -572,7 +572,7 @@ dependencies = [
 [[package]]
 name = "dioxus-cli-config"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "wasm-bindgen",
 ]
@@ -580,7 +580,7 @@ dependencies = [
 [[package]]
 name = "dioxus-config-macro"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -589,17 +589,17 @@ dependencies = [
 [[package]]
 name = "dioxus-config-macros"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 
 [[package]]
 name = "dioxus-const-vec"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 
 [[package]]
 name = "dioxus-core"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "anyhow",
  "const_format",
@@ -624,19 +624,19 @@ dependencies = [
 [[package]]
 name = "dioxus-core-macro"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "convert_case",
  "dioxus-rsx",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
 name = "dioxus-core-template"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dioxus-const-vec",
  "serde",
@@ -646,12 +646,12 @@ dependencies = [
 [[package]]
 name = "dioxus-core-types"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 
 [[package]]
 name = "dioxus-devtools"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dioxus-cli-config",
  "dioxus-core",
@@ -668,7 +668,7 @@ dependencies = [
 [[package]]
 name = "dioxus-devtools-types"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dioxus-core",
  "serde",
@@ -678,7 +678,7 @@ dependencies = [
 [[package]]
 name = "dioxus-document"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dioxus-core",
  "dioxus-core-macro",
@@ -696,7 +696,7 @@ dependencies = [
 [[package]]
 name = "dioxus-history"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dioxus-core",
  "tracing",
@@ -705,7 +705,7 @@ dependencies = [
 [[package]]
 name = "dioxus-hooks"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dioxus-core",
  "dioxus-signals",
@@ -720,7 +720,7 @@ dependencies = [
 [[package]]
 name = "dioxus-html"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "async-trait",
  "bytes",
@@ -746,18 +746,18 @@ dependencies = [
 [[package]]
 name = "dioxus-html-internal-macro"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "convert_case",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
 name = "dioxus-interpreter-js"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "js-sys",
  "lazy-js-bundle",
@@ -772,7 +772,7 @@ dependencies = [
 [[package]]
 name = "dioxus-logger"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dioxus-cli-config",
  "tracing",
@@ -783,7 +783,7 @@ dependencies = [
 [[package]]
 name = "dioxus-native-dom"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "blitz-dom",
  "blitz-traits",
@@ -797,20 +797,20 @@ dependencies = [
 [[package]]
 name = "dioxus-rsx"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dioxus-core-template",
  "proc-macro2",
  "proc-macro2-diagnostics",
  "quote",
  "rustversion",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
 name = "dioxus-signals"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dioxus-core",
  "futures-channel",
@@ -825,7 +825,7 @@ dependencies = [
 [[package]]
 name = "dioxus-stores"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dioxus-core",
  "dioxus-signals",
@@ -836,12 +836,12 @@ dependencies = [
 [[package]]
 name = "dioxus-stores-macro"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "convert_case",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -866,7 +866,7 @@ dependencies = [
 [[package]]
 name = "dioxus-web"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dioxus-cli-config",
  "dioxus-core",
@@ -903,7 +903,7 @@ checksum = "1ac70aa55017e108007fbaf5aa0f54b021c98f92ff8af59d42eda9da96e3dd4f"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -969,7 +969,7 @@ dependencies = [
  "darling 0.21.3",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -1071,9 +1071,8 @@ dependencies = [
 
 [[package]]
 name = "fontique"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6688bc1294fe7117d788937b6c53480169b29c566954af490830d4c09da9516a"
+version = "0.11.0"
+source = "git+https://github.com/linebender/parley?rev=718dcb721941fd8e72128833122d31f5a4e80504#718dcb721941fd8e72128833122d31f5a4e80504"
 dependencies = [
  "hashbrown",
  "linebender_resource_handle",
@@ -1129,7 +1128,7 @@ checksum = "e835b70203e41293343137df5c0664546da5745f82ec9b84d40be8336958447b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -1163,7 +1162,7 @@ dependencies = [
 [[package]]
 name = "generational-box"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "parking_lot",
  "tracing",
@@ -1260,9 +1259,9 @@ checksum = "6dbf3de79e51f3d586ab4cb9d5c3e2c14aa28ed23d180cf89b4df0454a69cc87"
 
 [[package]]
 name = "icu_collections"
-version = "2.2.0"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2984d1cd16c883d7935b9e07e44071dca8d917fd52ecc02c04d5fa0b5a3f191c"
+checksum = "fa68d21081c4a05d5a901a1c62add574c77048b6a1c67be3b50ce0b60d4ca513"
 dependencies = [
  "displaydoc",
  "potential_utf",
@@ -1273,25 +1272,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "icu_locale"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5a396343c7208121dc86e35623d3dfe19814a7613cfd14964994cdc9c9a2e26"
-dependencies = [
- "icu_collections",
- "icu_locale_core",
- "icu_locale_data",
- "icu_provider",
- "potential_utf",
- "tinystr",
- "zerovec",
-]
-
-[[package]]
 name = "icu_locale_core"
-version = "2.2.0"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92219b62b3e2b4d88ac5119f8904c10f8f61bf7e95b640d25ba3075e6cac2c29"
+checksum = "d56e28588da92eee5c3201a6eff33fabdd49b62269c8938d4ff050ce4d900deb"
 dependencies = [
  "displaydoc",
  "litemap",
@@ -1302,16 +1286,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "icu_locale_data"
-version = "2.2.0"
+name = "icu_locale_fallback"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5fdcc9ac77c6d74ff5cf6e65ef3181d6af32003b16fce3a77fb451d2f695993"
+checksum = "251af8e57c9400e3eb58242fe5b8b1152b2a64fdf4cf632f923c38ccee6f2fa9"
+dependencies = [
+ "icu_locale_core",
+ "icu_locale_fallback_data",
+ "icu_provider",
+ "potential_utf",
+ "tinystr",
+ "zerovec",
+]
+
+[[package]]
+name = "icu_locale_fallback_data"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "decf2a22ec8fa68f1a0c1129a3f8583f8f8bc24e8b9ccbe98ead99f62a4dc3a8"
 
 [[package]]
 name = "icu_normalizer"
-version = "2.2.0"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c56e5ee99d6e3d33bd91c5d85458b6005a22140021cc324cea84dd0e72cff3b4"
+checksum = "12f9cf5f235641ed274641dd81c3f28d870e276763d0797aeeab72317b1c646f"
 dependencies = [
  "icu_collections",
  "icu_normalizer_data",
@@ -1323,16 +1321,17 @@ dependencies = [
 
 [[package]]
 name = "icu_normalizer_data"
-version = "2.2.0"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da3be0ae77ea334f4da67c12f149704f19f81d1adf7c51cf482943e84a2bad38"
+checksum = "1563da1ed3e0b3bf3d74c9b85917ac9c56464d2f57242270c09c9e752f8021a0"
 
 [[package]]
 name = "icu_properties"
-version = "2.2.0"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bee3b67d0ea5c2cca5003417989af8996f8604e34fb9ddf96208a033901e70de"
+checksum = "7e7ca276ad3145661a65914e6daf131ca5120cd3dcee8f8f3214b8875184a148"
 dependencies = [
+ "displaydoc",
  "icu_collections",
  "icu_locale_core",
  "icu_properties_data",
@@ -1343,15 +1342,15 @@ dependencies = [
 
 [[package]]
 name = "icu_properties_data"
-version = "2.2.0"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e2bbb201e0c04f7b4b3e14382af113e17ba4f63e2c9d2ee626b720cbce54a14"
+checksum = "e590f038c1464a96894fd6d10127e90a8be4509f56ff7ecef851b15cee0b7caa"
 
 [[package]]
 name = "icu_provider"
-version = "2.2.0"
+version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "139c4cf31c8b5f33d7e199446eff9c1e02decfc2f0eec2c8d71f65befa45b421"
+checksum = "d27bbb9d3abbefac45d55f647c9de1d44aafcd1186eb91879afef17c396c3e73"
 dependencies = [
  "displaydoc",
  "icu_locale_core",
@@ -1366,25 +1365,26 @@ dependencies = [
 
 [[package]]
 name = "icu_segmenter"
-version = "2.2.0"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c0794db0b1a86193ac9c48768d0e6c52c54448e0870ad87907d456ee0dac964"
+checksum = "82d07aafccd67af15d02512a6adf5896fbc5ed00f2e99b471d2efa14016db3db"
 dependencies = [
  "core_maths",
  "icu_collections",
- "icu_locale",
+ "icu_locale_fallback",
  "icu_provider",
  "icu_segmenter_data",
  "potential_utf",
+ "smallvec",
  "utf8_iter",
  "zerovec",
 ]
 
 [[package]]
 name = "icu_segmenter_data"
-version = "2.2.0"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4a2c462a4d927d512f5f882a033ddd62f33a05bb9f230d98f736ac3dc85938f"
+checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 
 [[package]]
 name = "ident_case"
@@ -1505,7 +1505,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38c0b942f458fe50cdac086d2f946512305e5631e720728f2a61aabcd47a6264"
 dependencies = [
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -1560,7 +1560,7 @@ dependencies = [
 [[package]]
 name = "lazy-js-bundle"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 
 [[package]]
 name = "lazy_static"
@@ -1637,7 +1637,7 @@ checksum = "1b27834086c65ec3f9387b096d66e99f221cf081c2b738042aa252bcd41204e3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -1647,14 +1647,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f44db74bde26fdf427af23f1d146c211aed857c59e3be750cf2617f6b0b05c94"
 dependencies = [
  "proc-macro2",
- "syn",
+ "syn 2.0.118",
  "synstructure",
 ]
 
 [[package]]
 name = "manganis"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "const-serialize",
  "jni",
@@ -1668,7 +1668,7 @@ dependencies = [
 [[package]]
 name = "manganis-core"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "const-serialize",
  "dioxus-cli-config",
@@ -1680,21 +1680,21 @@ dependencies = [
 [[package]]
 name = "manganis-macro"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "dunce",
  "macro-string",
  "manganis-core",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
 name = "markup5ever"
-version = "0.39.0"
+version = "0.40.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7122d987ec5f704ee56f6e5b41a7d93722e9aae27ae07cafa4036c4d3f9757de"
+checksum = "0ab3dc68ac4a0f5719e560136778c1ee716e296030d75dbd4484e37e39e3a842"
 dependencies = [
  "log",
  "tendril",
@@ -1794,7 +1794,7 @@ checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -1844,7 +1844,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -1933,34 +1933,52 @@ dependencies = [
 [[package]]
 name = "parlance"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b6937eda350acc1a5d05872c3cbf99fe78619c269096e2be3d4a350058639d5"
+source = "git+https://github.com/linebender/parley?rev=718dcb721941fd8e72128833122d31f5a4e80504#718dcb721941fd8e72128833122d31f5a4e80504"
 
 [[package]]
 name = "parley"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22d2ff88bd3f7d68d1d9b09c7e6209f9a8e8c05088295140a2bcf2e9b17038c5"
+version = "0.11.0"
+source = "git+https://github.com/linebender/parley?rev=718dcb721941fd8e72128833122d31f5a4e80504#718dcb721941fd8e72128833122d31f5a4e80504"
+dependencies = [
+ "fontique",
+ "hashbrown",
+ "linebender_resource_handle",
+ "parlance",
+ "parley_engine",
+ "smallvec",
+]
+
+[[package]]
+name = "parley_data"
+version = "0.11.0"
+source = "git+https://github.com/linebender/parley?rev=718dcb721941fd8e72128833122d31f5a4e80504#718dcb721941fd8e72128833122d31f5a4e80504"
+dependencies = [
+ "icu_collections",
+ "icu_properties",
+]
+
+[[package]]
+name = "parley_emoji"
+version = "0.11.0"
+source = "git+https://github.com/linebender/parley?rev=718dcb721941fd8e72128833122d31f5a4e80504#718dcb721941fd8e72128833122d31f5a4e80504"
+
+[[package]]
+name = "parley_engine"
+version = "0.11.0"
+source = "git+https://github.com/linebender/parley?rev=718dcb721941fd8e72128833122d31f5a4e80504#718dcb721941fd8e72128833122d31f5a4e80504"
 dependencies = [
  "fontique",
  "harfrust",
  "hashbrown",
+ "icu_locale_core",
  "icu_normalizer",
  "icu_properties",
  "icu_segmenter",
  "linebender_resource_handle",
  "parlance",
  "parley_data",
+ "parley_emoji",
  "skrifa",
-]
-
-[[package]]
-name = "parley_data"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1567535334d6ba2d3cde19221ba9a7bd0fabb3cbd99046ddfb10ae061cfcc889"
-dependencies = [
- "icu_properties",
 ]
 
 [[package]]
@@ -1983,9 +2001,9 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "phf"
-version = "0.13.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1562dc717473dbaa4c1f85a36410e03c047b2e7df7f45ee938fbef64ae7fadf"
+checksum = "010378780309880b08997fae13be7834dba947d36393bd372f2b1556deb2a2f6"
 dependencies = [
  "phf_macros",
  "phf_shared",
@@ -1994,9 +2012,9 @@ dependencies = [
 
 [[package]]
 name = "phf_codegen"
-version = "0.13.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49aa7f9d80421bca176ca8dbfebe668cc7a2684708594ec9f3c0db0805d5d6e1"
+checksum = "41b585a510fb76fdebead6897982ef2a03a21d8e6cbcca904999742a4afc6ffe"
 dependencies = [
  "phf_generator",
  "phf_shared",
@@ -2004,9 +2022,9 @@ dependencies = [
 
 [[package]]
 name = "phf_generator"
-version = "0.13.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "135ace3a761e564ec88c03a77317a7c6b80bb7f7135ef2544dbe054243b89737"
+checksum = "aeb62e0959d5a1bebc965f4d15d9e2b7cea002b6b0f5ba8cde6cc26738467100"
 dependencies = [
  "fastrand",
  "phf_shared",
@@ -2014,22 +2032,22 @@ dependencies = [
 
 [[package]]
 name = "phf_macros"
-version = "0.13.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "812f032b54b1e759ccd5f8b6677695d5268c588701effba24601f6932f8269ef"
+checksum = "5fa8d0ca26d424d27630da600c6624696e7dec8bf7b3b492b383c5dc49e5e085"
 dependencies = [
  "phf_generator",
  "phf_shared",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
 name = "phf_shared"
-version = "0.13.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e57fef6bc5981e38c2ce2d63bfa546861309f875b8a75f092d1d54ae2d64f266"
+checksum = "c6fd9027e2d9319be6349febd1db4e8d02aa544921200c9b777720ac34a3aa89"
 dependencies = [
  "siphasher",
 ]
@@ -2057,7 +2075,7 @@ checksum = "c96395f0a926bc13b1c17622aaddda1ecb55d49c8f1bf9777e4d877800a43f8b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -2133,7 +2151,7 @@ checksum = "af066a9c399a26e020ada66a034357a868728e72cd426f3adcd35f80d88d88c8"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
  "version_check",
 ]
 
@@ -2328,17 +2346,15 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "selectors"
-version = "0.40.0"
+version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eeee001a77567bb05e71652718d3ff76d8697c151ac523e68e9513194eb2b75a"
+checksum = "8322aebea94a6cc288ff884e8a49bdbceef60206c400c6c46d22e62fc4fd91a6"
 dependencies = [
  "bitflags",
  "cssparser",
  "derive_more",
  "log",
  "new_debug_unreachable",
- "phf",
- "phf_codegen",
  "precomputed-hash",
  "rustc-hash 2.1.3",
  "servo_arc",
@@ -2400,7 +2416,7 @@ checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -2424,7 +2440,7 @@ checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -2438,9 +2454,9 @@ dependencies = [
 
 [[package]]
 name = "servo_arc"
-version = "0.4.3"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "170fb83ab34de17dc69aa7c67482b22218ddb85da56546f9bd6b929e32a05930"
+checksum = "b4eceb519ec34d8290aaf6e46f435102f2bfa63f22b05a144fb16ab266d3b198"
 dependencies = [
  "serde",
  "stable_deref_trait",
@@ -2526,7 +2542,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb251b407f50028476a600541542b605bb864d35d9ee1de4f6cab45d88475e6d"
 dependencies = [
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -2593,9 +2609,9 @@ dependencies = [
 
 [[package]]
 name = "string_cache"
-version = "0.9.0"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a18596f8c785a729f2819c0f6a7eae6ebeebdfffbfe4214ae6b087f690e31901"
+checksum = "ffa8a5dbe8b3f0bbe29d4c3225daafaeead63afdc1b65fc4c01a1384166038e6"
 dependencies = [
  "new_debug_unreachable",
  "parking_lot",
@@ -2606,9 +2622,9 @@ dependencies = [
 
 [[package]]
 name = "string_cache_codegen"
-version = "0.6.1"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "585635e46db231059f76c5849798146164652513eb9e8ab2685939dd90f29b69"
+checksum = "928dcdf75e47626b3617a976ec205d9f057584c371c1f23b782129268d0e6edc"
 dependencies = [
  "phf_generator",
  "phf_shared",
@@ -2631,14 +2647,14 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
 name = "stylo"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "631d138475c566e37168f8394380e8ec89a6089dc806c7a76d355d73e9006553"
+checksum = "7a255e46af2478628c48daab3774090caabd7812b1dd3ca98801c2b9c53491ed"
 dependencies = [
  "app_units",
  "arrayvec",
@@ -2693,9 +2709,9 @@ dependencies = [
 
 [[package]]
 name = "stylo_atoms"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "706e5fd9b66b8c1aa1e73e2acecdbec7b274d5bba7fe8946139696184e54978b"
+checksum = "ee1771588fd747ef16f8b1990061b6f37c7d3251a0f9b74f405a44c0c5fb8966"
 dependencies = [
  "string_cache",
  "string_cache_codegen",
@@ -2703,22 +2719,22 @@ dependencies = [
 
 [[package]]
 name = "stylo_derive"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01adb19a78d0d078d2132494616a61fbe4ec78545af4ea7368796b11ceb8e888"
+checksum = "4ee5c550c2e00a0b3c046bef84a9ee217e04e7c014142eeb96f9e48781c5cfd3"
 dependencies = [
  "darling 0.20.11",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
  "synstructure",
 ]
 
 [[package]]
 name = "stylo_dom"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "117715ee78843f4df7523ee970002622ecad6f0049f18147e04a3bf56c70d24d"
+checksum = "9febcb03f2b669ef06b3e8a5209e6280971ed55cecf83fbf3c0562fcf2aa2ec6"
 dependencies = [
  "bitflags",
  "stylo_malloc_size_of",
@@ -2726,13 +2742,14 @@ dependencies = [
 
 [[package]]
 name = "stylo_malloc_size_of"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29c7312cba289bd0015f64397a25af604ac551426b503dde9d64a0deed59751e"
+checksum = "83ed69d55ee907599f093221004a28371925236f09f20961963020abf38bab6a"
 dependencies = [
  "app_units",
  "cssparser",
  "euclid",
+ "parking_lot",
  "selectors",
  "servo_arc",
  "smallbitvec",
@@ -2744,9 +2761,9 @@ dependencies = [
 
 [[package]]
 name = "stylo_static_prefs"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75e76005daba1feda388038f018ecbcdcddaabac66b02d1a10ad3379fdd1455d"
+checksum = "6767c48a1590461db79f8b434ccc5a2d65600a3b716751f7999b35ccead1e024"
 dependencies = [
  "toml",
 ]
@@ -2754,7 +2771,7 @@ dependencies = [
 [[package]]
 name = "stylo_taffy"
 version = "0.3.0-beta.2"
-source = "git+https://github.com/hovinen/blitz?branch=support-aria-label-and-labelledby#bfed93d2efaa352ae845805c66aae93da11ce004"
+source = "git+https://github.com/hovinen/blitz?branch=support-aria-description-and-describedby#de87ad036f513392a15c5f2a6ba679a290c95f61"
 dependencies = [
  "bitflags",
  "stylo",
@@ -2764,9 +2781,9 @@ dependencies = [
 
 [[package]]
 name = "stylo_traits"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b78fba4e24b86d98bc5c92b2655d39baea1d4fbefb0c4172394492a99768cfd9"
+checksum = "645d6bfe40eb6e86ebe9f2d2adadcbced41bfa96175de7cb13d4d178d27bc83d"
 dependencies = [
  "app_units",
  "bitflags",
@@ -2787,7 +2804,7 @@ dependencies = [
 [[package]]
 name = "subsecond"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "js-sys",
  "libc",
@@ -2805,7 +2822,7 @@ dependencies = [
 [[package]]
 name = "subsecond-types"
 version = "0.8.0-alpha.1"
-source = "git+https://github.com/DioxusLabs/dioxus#c607e4ef28616456402b6da32c916e977c95d665"
+source = "git+https://github.com/hovinen/dioxus?branch=fix%2Fuse-as-str-not-as-ref#f3210c528bc7f3c28b6be6f8f164827f9f0b2830"
 dependencies = [
  "serde",
 ]
@@ -2832,6 +2849,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "syn"
+version = "3.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8593e8e72159ed2257d083c7a454a85cbf854f37a0966d8d483aff8c8a3ebcee"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
 name = "synstructure"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2839,13 +2867,13 @@ checksum = "728a70f3dbaf5bab7f0c4b1ac8d7ae5ea60a4b5549c8a5914361c99147a709d2"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
 name = "taffy"
 version = "0.14.0"
-source = "git+https://github.com/DioxusLabs/taffy?rev=4863877b9cab21645b160d7f247901f90214fe27#4863877b9cab21645b160d7f247901f90214fe27"
+source = "git+https://github.com/DioxusLabs/taffy?rev=fb461a7826e49f488f31220744bf12227ffb580e#fb461a7826e49f488f31220744bf12227ffb580e"
 dependencies = [
  "serde",
  "slotmap",
@@ -2903,7 +2931,7 @@ checksum = "4fee6c4efc90059e10f81e6d42c60a18f76588c3d74cb83a0b242a2b6c7504c1"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -2914,7 +2942,7 @@ checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -2939,9 +2967,9 @@ dependencies = [
 
 [[package]]
 name = "tinystr"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8323304221c2a851516f22236c5722a72eaa19749016521d6dff0824447d96d"
+checksum = "b1e27c91459209c2986af3dcf603a5a74a4368754ce37414f59acc971167f643"
 dependencies = [
  "displaydoc",
  "serde_core",
@@ -2965,9 +2993,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "to_shmem"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8c81cee0d28327337a94f3f32a1a77c03bbfd926510f3b42956f9d914e7810c"
+checksum = "bbf077da8dd01cc18453bd7d9bc3a945c262f5f344562e5f6deb3914b4dd6f14"
 dependencies = [
  "cssparser",
  "servo_arc",
@@ -2979,14 +3007,14 @@ dependencies = [
 
 [[package]]
 name = "to_shmem_derive"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ba1f5563024b63bb6acb4558452d9ba737518c1d11fcc1861febe98d1e31cf4"
+checksum = "0f8e91a023810fd2019648410d00eea13a71f21d849e71d6d9ed936fb8061174"
 dependencies = [
  "darling 0.20.11",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
  "synstructure",
 ]
 
@@ -3008,7 +3036,7 @@ checksum = "385a6cb71ab9ab790c5fe8d67f1645e6c450a7ce006a33de03daa956cf70a496"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -3081,7 +3109,7 @@ checksum = "7490cfa5ec963746568740651ac6781f701c9c5ea257c58e057f3ba8cf69e8da"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -3287,7 +3315,7 @@ checksum = "59195a1db0e95b920366d949ba5e0d3fc0e70b67c09be15ce5abb790106b0571"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -3341,7 +3369,7 @@ dependencies = [
  "bumpalo",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
  "wasm-bindgen-shared",
 ]
 
@@ -3389,9 +3417,9 @@ dependencies = [
 
 [[package]]
 name = "web_atoms"
-version = "0.2.5"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "075474b12bcb3d2e3d4546580e9de478eeeead668a1761e2a8860c836b7ef297"
+checksum = "7572660c8890448ba236b7376f27e389c6a7e1c70195622faced601f855c0ada"
 dependencies = [
  "phf",
  "phf_codegen",
@@ -3461,7 +3489,7 @@ checksum = "053e2e040ab57b9dc951b72c264860db7eb3b0200ba345b4e4c3b14f67855ddf"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -3472,7 +3500,7 @@ checksum = "3f316c4a2570ba26bbec722032c4099d8c8bc095efccdc15688708623367e358"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -3619,9 +3647,9 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "writeable"
-version = "0.6.3"
+version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
+checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "xmlwriter"
@@ -3665,7 +3693,7 @@ checksum = "de844c262c8848816172cef550288e7dc6c7b7814b4ee56b3e1553f275f1858e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
  "synstructure",
 ]
 
@@ -3686,7 +3714,7 @@ checksum = "0fe976fb70c78cd64cccfe3a6fc142244e8a77b70959b30faf9d0ac37ee228eb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -3706,15 +3734,15 @@ checksum = "11532158c46691caf0f2593ea8358fed6bbf68a0315e80aae9bd41fbade684a1"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.118",
  "synstructure",
 ]
 
 [[package]]
 name = "zerotrie"
-version = "0.2.4"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f9152d31db0792fa83f70fb2f83148effb5c1f5b8c7686c3459e361d9bc20bf"
+checksum = "4ea269c3bd32f0a32c321907a2ae912ba6f4649bb0fc764a15627e99a7095a3f"
 dependencies = [
  "displaydoc",
  "yoke",
@@ -3724,9 +3752,9 @@ dependencies = [
 
 [[package]]
 name = "zerovec"
-version = "0.11.6"
+version = "0.11.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90f911cbc359ab6af17377d242225f4d75119aec87ea711a880987b18cd7b239"
+checksum = "bb0464e17806c1d976d5cba29399c7f08e516e279e2ba493f63123b5fca67dd8"
 dependencies = [
  "serde",
  "yoke",
@@ -3736,13 +3764,13 @@ dependencies = [
 
 [[package]]
 name = "zerovec-derive"
-version = "0.11.3"
+version = "0.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "625dc425cab0dca6dc3c3319506e6593dcb08a9f387ea3b284dbd52a92c40555"
+checksum = "34df6fc39dbd26ddc9c10e6a2984476e13acce22e64e4487636ef494369225da"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 3.0.6",
 ]
 
 [[package]]

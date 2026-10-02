@@ -343,6 +343,7 @@ pub fn by_role(role: Role) -> QueryByRole<'static> {
     QueryByRole {
         role,
         name: None,
+        description: None,
         parent: None,
     }
 }
@@ -352,6 +353,7 @@ pub fn by_role(role: Role) -> QueryByRole<'static> {
 pub struct QueryByRole<'parent> {
     role: Role,
     name: Option<Rc<dyn Matcher<String>>>,
+    description: Option<Rc<dyn Matcher<String>>>,
     parent: Option<&'parent dyn Query>,
 }
 
@@ -460,6 +462,118 @@ impl<'parent> QueryByRole<'parent> {
     pub fn having_name(self, name: impl Matcher<String> + 'static) -> Self {
         Self {
             name: Some(Rc::new(name)),
+            ..self
+        }
+    }
+
+    /// Restricts this query to elements having the an accessible description matched by the given
+    /// matcher.
+    ///
+    /// See [W3C documentation](https://w3c.github.io/aria/accname/#dfn-accessible-description) for
+    /// information on the accessible description of an element.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut output = use_signal(|| "");
+    ///     rsx! {
+    ///         button {
+    ///              onclick: move |_| {
+    ///                  output.set("Wrong button clicked")
+    ///              },
+    ///              "aria-description": "Do not click!",
+    ///              "Generic buton"
+    ///         }
+    ///         button {
+    ///              onclick: move |_| {
+    ///                  output.set("Right button clicked")
+    ///              },
+    ///              "aria-description": "Click me!",
+    ///              "Generic button"
+    ///         }
+    ///         div {
+    ///              "data-testid": "output",
+    ///              {output}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # async fn test_fn() {
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::Button).having_description(eq("Click me!")))
+    ///     .click()
+    ///     .await
+    ///     .unwrap();
+    ///
+    /// tester
+    ///     .query(by_testid("output"))
+    ///     .expect(inner_html(eq("Right button clicked")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+    /// ```
+    ///
+    /// You can use the following matchers:
+    ///
+    /// - [`eq`][crate::matchers::eq] for exact equality,
+    /// - [`contains_substring`][crate::matchers::contains_substring] for string containment,
+    /// - [`starts_with`][crate::matchers::starts_with] to match the start of the string,
+    /// - [`ends_with`][crate::matchers::ends_with] to match the end of the string,
+    /// - [`matches_regex`][crate::matchers::matches_regex] to match names fully satisfying the
+    ///   given regular expression,
+    /// - [`contains_regex`][crate::matchers::contains_regex] to match names containing a substring
+    ///   satisfying the given regular expression.
+    ///
+    /// For case-insensitive matching, invoke the method
+    /// [`ignoring_ascii_case`][crate::matchers::StrMatcherConfigurator::ignoring_ascii_case]. This
+    /// is available on all matchers above _except_ `matches_regex` and `contains_regex`.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html, StrMatcherConfigurator as _}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut output = use_signal(|| "");
+    ///     rsx! {
+    ///         button {
+    ///              onclick: move |_| {
+    ///                  output.set("Button clicked")
+    ///              },
+    ///              "aria-description": "Click me!",
+    ///              "Generic button"
+    ///         }
+    ///         div {
+    ///              "data-testid": "output",
+    ///              {output}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # async fn test_fn() {
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::Button).having_description(eq("click ME!").ignoring_ascii_case()))
+    ///     .click()
+    ///     .await
+    ///     .unwrap();
+    ///
+    /// tester
+    ///     .query(by_testid("output"))
+    ///     .expect(inner_html(eq("Button clicked")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+    /// ```
+    pub fn having_description(self, description: impl Matcher<String> + 'static) -> Self {
+        Self {
+            description: Some(Rc::new(description)),
             ..self
         }
     }
@@ -578,6 +692,10 @@ impl<'parent> QueryByRole<'parent> {
             false
         } else if let Some(name) = &self.name {
             name.matches(&aria_tree.compute_accessible_name(node))
+                .is_match()
+        } else if let Some(description) = &self.description {
+            description
+                .matches(&aria_tree.compute_accessible_description(node))
                 .is_match()
         } else {
             true

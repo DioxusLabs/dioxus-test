@@ -50,15 +50,7 @@ impl AriaTree {
         if let Some(label) = node.label() {
             Some(label.to_string())
         } else if allow_labelled_by && !node.labelled_by().is_empty() {
-            let components: Vec<_> = node
-                .labelled_by()
-                .iter()
-                .filter_map(|node_id| {
-                    let node = self.nodes_by_node_id.get(node_id)?;
-                    self.compute_accessible_name_recursively(node, true, false)
-                })
-                .collect();
-            Some(components.join(" "))
+            Some(self.compute_accessible_name_from_nodes(node.labelled_by()))
         } else if (always_allow_name_from_content || Self::supports_name_from_content(node.role()))
             && let Some(text_content) = self.get_text_content(node)
         {
@@ -109,6 +101,31 @@ impl AriaTree {
         } else {
             None
         }
+    }
+
+    /// Computes the W3C accessible name of the given accesskit [`Node`].
+    ///
+    /// This implements a subset of the algorithm described in the
+    /// [W3C spec](https://w3c.github.io/aria/accname/#mapping_additional_nd_description).
+    pub(super) fn compute_accessible_description(&self, node: &Node) -> String {
+        if !node.described_by().is_empty() {
+            self.compute_accessible_name_from_nodes(node.described_by())
+        } else if let Some(description) = node.description() {
+            description.to_string()
+        } else {
+            String::new()
+        }
+    }
+
+    fn compute_accessible_name_from_nodes(&self, nodes: &[NodeId]) -> String {
+        let components: Vec<_> = nodes
+            .iter()
+            .filter_map(|node_id| {
+                let node = self.nodes_by_node_id.get(node_id)?;
+                self.compute_accessible_name_recursively(node, true, false)
+            })
+            .collect();
+        components.join(" ")
     }
 }
 
@@ -238,6 +255,32 @@ mod tests {
             let result = aria_tree.compute_accessible_name(starting_node);
 
             verify_that!(result, eq("Button label"))
+        }
+
+        #[test]
+        fn obtains_description_from_aria_describedby() -> TestResult<()> {
+            #[component]
+            fn TestComponent() -> Element {
+                rsx! {
+                    button {
+                        "aria-describedby": "description",
+                    }
+                    label {
+                        id: "description",
+                        "Button description"
+                    }
+                }
+            }
+            let tester = render(TestComponent);
+            let aria_tree = build_aria_tree(&tester);
+            let starting_node = get_accesskit_node_of_element(
+                &aria_tree,
+                &tester.query(by_role(Role::Button)).immediately()?,
+            );
+
+            let result = aria_tree.compute_accessible_description(starting_node);
+
+            verify_that!(result, eq("Button description"))
         }
 
         fn build_aria_tree(tester: &DocumentTester) -> AriaTree {
