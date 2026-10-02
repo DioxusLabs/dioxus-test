@@ -356,7 +356,7 @@ pub struct QueryByRole<'parent> {
 }
 
 impl<'parent> QueryByRole<'parent> {
-    /// Restricts this query to elements having the an accessible name containing the given value.
+    /// Restricts this query to elements having the an accessible name matched by the given matcher.
     ///
     /// See [W3C documentation](https://w3c.github.io/accname/#dfn-accessible-name) for information
     /// on the accessible name of an element.
@@ -399,6 +399,59 @@ impl<'parent> QueryByRole<'parent> {
     /// tester
     ///     .query(by_testid("output"))
     ///     .expect(inner_html(eq("Right button clicked")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+    /// ```
+    ///
+    /// You can use the following matchers:
+    ///
+    /// - [`eq`][crate::matchers::eq] for exact equality,
+    /// - [`contains_substring`][crate::matchers::contains_substring] for string containment,
+    /// - [`starts_with`][crate::matchers::starts_with] to match the start of the string,
+    /// - [`ends_with`][crate::matchers::ends_with] to match the end of the string,
+    /// - [`matches_regex`][crate::matchers::matches_regex] to match names fully satisfying the
+    ///   given regular expression,
+    /// - [`contains_regex`][crate::matchers::contains_regex] to match names containing a substring
+    ///   satisfying the given regular expression.
+    ///
+    /// For case-insensitive matching, invoke the method
+    /// [`ignoring_ascii_case`][crate::matchers::StrMatcherConfigurator::ignoring_ascii_case]. This
+    /// is available on all matchers above _except_ `matches_regex` and `contains_regex`.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html, StrMatcherConfigurator as _}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut output = use_signal(|| "");
+    ///     rsx! {
+    ///         button {
+    ///              onclick: move |_| {
+    ///                  output.set("Button clicked")
+    ///              },
+    ///              "Click me!"
+    ///         }
+    ///         div {
+    ///              "data-testid": "output",
+    ///              {output}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # async fn test_fn() {
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::Button).having_name(eq("click ME!").ignoring_ascii_case()))
+    ///     .click()
+    ///     .await
+    ///     .unwrap();
+    ///
+    /// tester
+    ///     .query(by_testid("output"))
+    ///     .expect(inner_html(eq("Button clicked")))
     ///     .immediately()
     ///     .unwrap();
     /// # }
