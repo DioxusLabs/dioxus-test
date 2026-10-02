@@ -11,8 +11,8 @@ keywords = ["dom", "ui", "gui", "react", "testing"]
 
 [dependencies]
 accesskit = "0.25.0"
-blitz-dom = { git = "https://github.com/hovinen/blitz", branch = "support-aria-description-and-describedby", default-features = false }
-blitz-traits = { git = "https://github.com/hovinen/blitz", branch = "support-aria-description-and-describedby", default-features = false }
+blitz-dom = { git = "https://github.com/hovinen/blitz", branch = "support-aria-level", default-features = false }
+blitz-traits = { git = "https://github.com/hovinen/blitz", branch = "support-aria-level", default-features = false }
 dioxus-core = { git = "https://github.com/hovinen/dioxus", branch = "fix/use-as-str-not-as-ref" }
 dioxus-html = { git = "https://github.com/hovinen/dioxus", branch = "fix/use-as-str-not-as-ref" }
 dioxus-native-dom = { git = "https://github.com/hovinen/dioxus", branch = "fix/use-as-str-not-as-ref" }
@@ -23,8 +23,8 @@ tokio = { version = "1.48", features = ["time"] }
 tracing = { version = "0.1.41" }
 
 [patch.crates-io]
-blitz-dom = { git = "https://github.com/hovinen/blitz", branch = "support-aria-description-and-describedby" }
-blitz-traits = { git = "https://github.com/hovinen/blitz", branch = "support-aria-description-and-describedby" }
+blitz-dom = { git = "https://github.com/hovinen/blitz", branch = "support-aria-level" }
+blitz-traits = { git = "https://github.com/hovinen/blitz", branch = "support-aria-level" }
 
 [dev-dependencies]
 dioxus = { git = "https://github.com/hovinen/dioxus", branch = "fix/use-as-str-not-as-ref" }
