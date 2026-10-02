@@ -692,7 +692,7 @@ impl<'parent> QueryByRole<'parent> {
             write!(
                 result,
                 " having accessible name {}",
-                name.describe(MatcherResult::NoMatch)
+                name.describe(MatcherResult::Match)
             )
             .unwrap(); // Infallible
         }
@@ -700,7 +700,7 @@ impl<'parent> QueryByRole<'parent> {
             write!(
                 result,
                 " having accessible description {}",
-                description.describe(MatcherResult::NoMatch)
+                description.describe(MatcherResult::Match)
             )
             .unwrap(); // Infallible
         }
