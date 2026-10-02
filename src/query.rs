@@ -6,7 +6,9 @@ use aria_tree::AriaTree;
 use blitz_dom::{Document as _, SelectorList};
 use dioxus_native_dom::DioxusDocument;
 use smallvec::SmallVec;
+use std::rc::Rc;
 use style::dom_apis::{MayUseInvalidation, QueryAll, QueryFirst, query_selector};
+use test_that::matcher::{Matcher, MatcherResult};
 
 /// A value which can be turned into a CSS selector to query the DOM.
 ///
@@ -349,7 +351,7 @@ pub fn by_role(role: Role) -> QueryByRole<'static> {
 #[doc(hidden)]
 pub struct QueryByRole<'parent> {
     role: Role,
-    name: Option<String>,
+    name: Option<Rc<dyn Matcher<String>>>,
     parent: Option<&'parent dyn Query>,
 }
 
@@ -389,7 +391,7 @@ impl<'parent> QueryByRole<'parent> {
     /// # async fn test_fn() {
     /// let tester = render(MyComponent);
     /// tester
-    ///     .query(by_role(Role::Button).having_name("Click me!"))
+    ///     .query(by_role(Role::Button).having_name(eq("Click me!")))
     ///     .click()
     ///     .await
     ///     .unwrap();
@@ -402,9 +404,9 @@ impl<'parent> QueryByRole<'parent> {
     /// # }
     /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
     /// ```
-    pub fn having_name(self, name: impl Into<String>) -> Self {
+    pub fn having_name(self, name: impl Matcher<String> + 'static) -> Self {
         Self {
-            name: Some(name.into()),
+            name: Some(Rc::new(name)),
             ..self
         }
     }
@@ -439,7 +441,10 @@ impl<'parent> Query for QueryByRole<'parent> {
             parent.describe_failure(document)
         } else {
             let extra = if let Some(name) = &self.name {
-                format!(" having accessible name `{name}`")
+                format!(
+                    " having accessible name `{}`",
+                    name.describe(MatcherResult::NoMatch)
+                )
             } else {
                 String::new()
             };
@@ -457,7 +462,10 @@ impl<'parent> Query for QueryByRole<'parent> {
             parent.describe_unexpected_element(document)
         } else {
             let extra = if let Some(name) = &self.name {
-                format!(" having accessible name `{name}`")
+                format!(
+                    " having accessible name `{}`",
+                    name.describe(MatcherResult::Match)
+                )
             } else {
                 String::new()
             };
@@ -516,7 +524,8 @@ impl<'parent> QueryByRole<'parent> {
         if node.role() != self.role {
             false
         } else if let Some(name) = &self.name {
-            aria_tree.compute_accessible_name(node).contains(name)
+            name.matches(&aria_tree.compute_accessible_name(node))
+                .is_match()
         } else {
             true
         }
@@ -536,7 +545,11 @@ impl<'parent> std::fmt::Display for QueryByRole<'parent> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, r#"role="{:?}""#, self.role)?;
         if let Some(name) = &self.name {
-            write!(f, r#" having name "{name}""#)?;
+            write!(
+                f,
+                r#" having name "{}""#,
+                name.describe(MatcherResult::Match)
+            )?;
         }
         Ok(())
     }
