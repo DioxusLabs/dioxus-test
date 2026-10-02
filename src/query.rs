@@ -344,6 +344,7 @@ pub fn by_role(role: Role) -> QueryByRole<'static> {
         role,
         name: None,
         description: None,
+        level: None,
         parent: None,
     }
 }
@@ -354,6 +355,7 @@ pub struct QueryByRole<'parent> {
     role: Role,
     name: Option<Rc<dyn Matcher<String>>>,
     description: Option<Rc<dyn Matcher<String>>>,
+    level: Option<Rc<dyn Matcher<usize>>>,
     parent: Option<&'parent dyn Query>,
 }
 
@@ -577,6 +579,80 @@ impl<'parent> QueryByRole<'parent> {
             ..self
         }
     }
+
+    /// Restricts this query to elements having an ARIA level matched by the given matcher.
+    ///
+    /// The level is one-based, as in the
+    /// [`aria-level`](https://www.w3.org/TR/wai-aria-1.2/#aria-level) attribute, and is read from
+    /// the level of the element's accessibility node. Elements which have no level never match.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, matchers::{eq, inner_html}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         h1 { "Title" }
+    ///         h2 { "Section" }
+    ///         div { role: "heading", "aria-level": "3", "Subsection" }
+    ///     }
+    /// }
+    ///
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::Heading).having_level(eq(2)))
+    ///     .expect(inner_html(eq("Section")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// tester
+    ///     .query(by_role(Role::Heading).having_level(eq(3)))
+    ///     .expect(inner_html(eq("Subsection")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// ```
+    ///
+    /// You can use the following matchers:
+    ///
+    /// - [`eq`][crate::matchers::eq] for exact equality,
+    /// - [`gt`][crate::matchers::gt] for levels strictly greater than the given value,
+    /// - [`ge`][crate::matchers::ge] for levels greater than or equal to the given value,
+    /// - [`lt`][crate::matchers::lt] for levels strictly less than the given value,
+    /// - [`le`][crate::matchers::le] for levels less than or equal to the given value,
+    /// - [`in_range`][crate::matchers::in_range] for levels within a range, such as
+    ///   `in_range(2..=4)`.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, matchers::{in_range, le}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         h1 { "One" }
+    ///         h2 { "Two" }
+    ///         h3 { "Three" }
+    ///         h4 { "Four" }
+    ///         h5 { "Five" }
+    ///     }
+    /// }
+    ///
+    /// let tester = render(MyComponent);
+    /// assert_eq!(
+    ///     tester.query_all(by_role(Role::Heading).having_level(in_range(2..=4))).immediately().len(),
+    ///     3
+    /// );
+    /// assert_eq!(
+    ///     tester.query_all(by_role(Role::Heading).having_level(le(2))).immediately().len(),
+    ///     2
+    /// );
+    /// ```
+    pub fn having_level(self, level: impl Matcher<usize> + 'static) -> Self {
+        Self {
+            level: Some(Rc::new(level)),
+            ..self
+        }
+    }
 }
 
 impl<'parent> Query for QueryByRole<'parent> {
@@ -672,18 +748,22 @@ impl<'parent> QueryByRole<'parent> {
     }
 
     fn element_matches(&self, node: &accesskit::Node, aria_tree: &AriaTree) -> bool {
-        if node.role() != self.role {
-            false
-        } else if let Some(name) = &self.name {
-            name.matches(&aria_tree.compute_accessible_name(node))
-                .is_match()
-        } else if let Some(description) = &self.description {
-            description
-                .matches(&aria_tree.compute_accessible_description(node))
-                .is_match()
-        } else {
-            true
-        }
+        node.role() == self.role
+            && self.name.as_ref().is_none_or(|name| {
+                name.matches(&aria_tree.compute_accessible_name(node))
+                    .is_match()
+            })
+            && self.description.as_ref().is_none_or(|description| {
+                description
+                    .matches(&aria_tree.compute_accessible_description(node))
+                    .is_match()
+            })
+            && self.level.as_ref().is_none_or(|level| {
+                // accesskit levels are zero-based, while ARIA levels are one-based.
+                // See https://docs.rs/accesskit/latest/accesskit/struct.Node.html#method.level
+                node.level()
+                    .is_some_and(|actual| level.matches(&(actual + 1)).is_match())
+            })
     }
 
     fn describe_self(&self) -> String {
@@ -701,6 +781,14 @@ impl<'parent> QueryByRole<'parent> {
                 result,
                 " having accessible description {}",
                 description.describe(MatcherResult::Match)
+            )
+            .unwrap(); // Infallible
+        }
+        if let Some(level) = &self.level {
+            write!(
+                result,
+                " having ARIA level {}",
+                level.describe(MatcherResult::Match)
             )
             .unwrap(); // Infallible
         }
@@ -730,6 +818,13 @@ impl<'parent> std::fmt::Display for QueryByRole<'parent> {
                 description.describe(MatcherResult::Match)
             )?;
         }
+        if let Some(level) = &self.level {
+            write!(
+                f,
+                r#" having level {}"#,
+                level.describe(MatcherResult::Match)
+            )?;
+        }
         Ok(())
     }
 }
@@ -745,7 +840,7 @@ impl<'parent> IntoQuery for QueryByRole<'parent> {
 #[cfg(test)]
 mod tests {
     use super::by_role;
-    use crate::render;
+    use crate::{matchers::inner_html, render};
     use accesskit::Role;
     use dioxus::prelude::*;
     use test_that::prelude::*;
@@ -792,5 +887,106 @@ mod tests {
             .immediately();
 
         verify_that!(result, err(displays_as(contains_substring("A button"))))
+    }
+
+    #[test]
+    fn by_role_display_format_contains_level() -> TestResult<()> {
+        let query = by_role(Role::Heading).having_level(eq(3));
+
+        verify_that!(
+            format!("{query}"),
+            eq(r#"role="Heading" having level is equal to 3"#)
+        )
+    }
+
+    #[test]
+    fn failure_message_for_query_by_role_includes_level() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {}
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_role(Role::Heading).having_level(eq(3)))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                "No such element with role Heading having ARIA level is equal to 3"
+            )))
+        )
+    }
+
+    #[test]
+    fn having_level_matches_heading_by_tag() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                h1 { "One" }
+                h2 { "Two" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(by_role(Role::Heading).having_level(eq(2)))
+            .expect(inner_html(eq("Two")))
+            .immediately()
+    }
+
+    #[test]
+    fn having_level_matches_explicit_aria_level_over_tag() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                h1 { "aria-level": "4", "One" }
+                h2 { "Two" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(by_role(Role::Heading).having_level(eq(4)))
+            .expect(inner_html(eq("One")))
+            .immediately()
+    }
+
+    #[test]
+    fn having_level_does_not_match_element_without_level() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "Click" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(by_role(Role::Button).having_level(ge(0)))
+            .expect_no_matching_element()
+            .immediately()
+    }
+
+    #[test]
+    fn having_level_combines_with_name() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                h1 { "First Title" }
+                h2 { "Second Title" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(
+                by_role(Role::Heading)
+                    .having_name(contains_substring("Title"))
+                    .having_level(eq(2)),
+            )
+            .expect(inner_html(eq("Second Title")))
+            .immediately()
     }
 }
