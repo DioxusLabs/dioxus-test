@@ -339,12 +339,20 @@ fn render_parent_dom(parent: Option<&dyn Query>, document: &DioxusDocument) -> S
 /// # }
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
 /// ```
+///
+/// Elements are matched regardless of whether they are hidden from assistive technology by
+/// `aria-hidden="true"`. To restrict the query by that, use
+/// [`hidden()`][crate::QueryByRole::hidden].
+///
+/// Elements which are hidden from the accessibility tree altogether via the `hidden` attribute or
+/// the CSS properties `display: none` and `visibility: hidden` cannot be queried with this method.
 pub fn by_role(role: Role) -> QueryByRole<'static> {
     QueryByRole {
         role,
         name: None,
         description: None,
         level: None,
+        hidden: None,
         parent: None,
     }
 }
@@ -356,6 +364,7 @@ pub struct QueryByRole<'parent> {
     name: Option<Rc<dyn Matcher<String>>>,
     description: Option<Rc<dyn Matcher<String>>>,
     level: Option<Rc<dyn Matcher<usize>>>,
+    hidden: Option<bool>,
     parent: Option<&'parent dyn Query>,
 }
 
@@ -653,6 +662,51 @@ impl<'parent> QueryByRole<'parent> {
             ..self
         }
     }
+
+    /// Restricts this query to elements which are, or are not, hidden from assistive technology
+    /// by having the attribute `aria-hidden="true"`.
+    ///
+    /// With `hidden(true)`, the query only matches hidden elements. With `hidden(false)`, it only
+    /// matches elements which are _not_ hidden. By default, a query matches elements whether or
+    /// not they are hidden. See the
+    /// [W3C documentation](https://www.w3.org/TR/wai-aria-1.2/#aria-hidden) for details on the
+    /// attribute.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, matchers::{eq, inner_html}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         button { "Visible button" }
+    ///         button { "aria-hidden": "true", "Hidden button" }
+    ///     }
+    /// }
+    ///
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::Button).hidden(true))
+    ///     .expect(inner_html(eq("Hidden button")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// tester
+    ///     .query(by_role(Role::Button).hidden(false))
+    ///     .expect(inner_html(eq("Visible button")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// ```
+    ///
+    /// Only the element carrying `aria-hidden="true"` itself counts as hidden, not its
+    /// descendants. An element with `aria-hidden="false"` is not hidden. Elements hidden through
+    /// CSS, such as with `display: none` or `visibility: hidden`, are not part of the
+    /// accessibility tree at all, so no query by role matches them, whatever value is given here.
+    pub fn hidden(self, hidden: bool) -> Self {
+        Self {
+            hidden: Some(hidden),
+            ..self
+        }
+    }
 }
 
 impl<'parent> Query for QueryByRole<'parent> {
@@ -764,6 +818,7 @@ impl<'parent> QueryByRole<'parent> {
                 node.level()
                     .is_some_and(|actual| level.matches(&(actual + 1)).is_match())
             })
+            && self.hidden.is_none_or(|hidden| node.is_hidden() == hidden)
     }
 
     fn describe_self(&self) -> String {
@@ -791,6 +846,11 @@ impl<'parent> QueryByRole<'parent> {
                 level.describe(MatcherResult::Match)
             )
             .unwrap(); // Infallible
+        }
+        match self.hidden {
+            Some(true) => result.push_str(" being hidden"),
+            Some(false) => result.push_str(" not being hidden"),
+            None => {}
         }
         result
     }
@@ -824,6 +884,11 @@ impl<'parent> std::fmt::Display for QueryByRole<'parent> {
                 r#" having level {}"#,
                 level.describe(MatcherResult::Match)
             )?;
+        }
+        match self.hidden {
+            Some(true) => write!(f, " being hidden")?,
+            Some(false) => write!(f, " not being hidden")?,
+            None => {}
         }
         Ok(())
     }
@@ -987,6 +1052,173 @@ mod tests {
                     .having_level(eq(2)),
             )
             .expect(inner_html(eq("Second Title")))
+            .immediately()
+    }
+
+    #[test]
+    fn by_role_display_format_contains_hidden_true() -> TestResult<()> {
+        let query = by_role(Role::Button).hidden(true);
+
+        verify_that!(format!("{query}"), eq(r#"role="Button" being hidden"#))
+    }
+
+    #[test]
+    fn failure_message_for_query_by_role_includes_hidden_true() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "Visible button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_role(Role::Button).hidden(true))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                "No such element with role Button being hidden"
+            )))
+        )
+    }
+
+    #[test]
+    fn hidden_true_matches_only_element_with_aria_hidden_true() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "Visible button" }
+                button { "aria-hidden": "false", "Not hidden button" }
+                button { "aria-hidden": "true", "Hidden button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button).hidden(true))
+            .expect(len(eq(1)))
+            .immediately()?;
+        tester
+            .query(by_role(Role::Button).hidden(true))
+            .expect(inner_html(eq("Hidden button")))
+            .immediately()
+    }
+
+    #[test]
+    fn hidden_true_combines_with_name() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-hidden": "true", "First button" }
+                button { "aria-hidden": "true", "Second button" }
+                button { "Second button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(
+                by_role(Role::Button)
+                    .having_name(eq("Second button"))
+                    .hidden(true),
+            )
+            .expect(len(eq(1)))
+            .immediately()
+    }
+
+    #[test]
+    fn by_role_matches_hidden_and_non_hidden_elements_by_default() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "Visible button" }
+                button { "aria-hidden": "false", "Not hidden button" }
+                button { "aria-hidden": "true", "Hidden button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button))
+            .expect(len(eq(3)))
+            .immediately()
+    }
+
+    #[test]
+    fn by_role_display_format_has_no_hidden_restriction_by_default() -> TestResult<()> {
+        let query = by_role(Role::Button);
+
+        verify_that!(format!("{query}"), eq(r#"role="Button""#))
+    }
+
+    #[test]
+    fn by_role_display_format_contains_hidden_false() -> TestResult<()> {
+        let query = by_role(Role::Button).hidden(false);
+
+        verify_that!(format!("{query}"), eq(r#"role="Button" not being hidden"#))
+    }
+
+    #[test]
+    fn failure_message_for_query_by_role_includes_hidden_false() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-hidden": "true", "Hidden button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_role(Role::Button).hidden(false))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                "No such element with role Button not being hidden"
+            )))
+        )
+    }
+
+    #[test]
+    fn hidden_false_matches_only_elements_without_aria_hidden_true() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "Visible button" }
+                button { "aria-hidden": "false", "Not hidden button" }
+                button { "aria-hidden": "true", "Hidden button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button).hidden(false))
+            .expect(len(eq(2)))
+            .immediately()
+    }
+
+    #[test]
+    fn hidden_false_combines_with_name() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-hidden": "true", "First button" }
+                button { "aria-hidden": "true", "Second button" }
+                button { "Second button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(
+                by_role(Role::Button)
+                    .having_name(eq("Second button"))
+                    .hidden(false),
+            )
+            .expect(len(eq(1)))
             .immediately()
     }
 }
