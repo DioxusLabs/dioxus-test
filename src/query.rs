@@ -1124,6 +1124,90 @@ impl<'parent> IntoQuery for QueryByAriaProperties<'parent> {
     }
 }
 
+#[derive(Clone)]
+#[doc(hidden)]
+pub struct NthElementQuery<Q: Clone> {
+    full_query: Q,
+    n: usize,
+}
+
+impl<Q: Clone> NthElementQuery<Q> {
+    pub(crate) fn new(full_query: Q, n: usize) -> Self {
+        Self { full_query, n }
+    }
+}
+
+impl<Q: Query + Clone + std::fmt::Display> Query for NthElementQuery<Q> {
+    fn get_first_element(&self, document: &DioxusDocument) -> Option<blitz_dom::NodeId> {
+        self.full_query
+            .get_all_elements(document)
+            .get(self.n)
+            .cloned()
+    }
+
+    fn get_all_elements(&self, _: &DioxusDocument) -> Vec<blitz_dom::NodeId> {
+        unimplemented!("This query type is only for single-element queries")
+    }
+
+    fn describe_failure(&self, document: &DioxusDocument) -> TesterError {
+        self.full_query.describe_failure(document)
+    }
+
+    fn describe_unexpected_element(&self, document: &DioxusDocument) -> TesterError {
+        self.full_query.describe_unexpected_element(document)
+    }
+
+    fn render_parent_dom(&self, document: &DioxusDocument) -> String {
+        self.full_query.render_parent_dom(document)
+    }
+}
+
+impl<Q: std::fmt::Display + Clone> std::fmt::Display for NthElementQuery<Q> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} (element {})", self.full_query, self.n)
+    }
+}
+
+#[derive(Clone)]
+#[doc(hidden)]
+pub struct LastElementQuery<Q: Clone> {
+    full_query: Q,
+}
+
+impl<Q: Clone> LastElementQuery<Q> {
+    pub(crate) fn new(full_query: Q) -> Self {
+        Self { full_query }
+    }
+}
+
+impl<Q: Query + Clone + std::fmt::Display> Query for LastElementQuery<Q> {
+    fn get_first_element(&self, document: &DioxusDocument) -> Option<blitz_dom::NodeId> {
+        self.full_query.get_all_elements(document).last().cloned()
+    }
+
+    fn get_all_elements(&self, _: &DioxusDocument) -> Vec<blitz_dom::NodeId> {
+        unimplemented!("This query type is only for single-element queries")
+    }
+
+    fn describe_failure(&self, document: &DioxusDocument) -> TesterError {
+        self.full_query.describe_failure(document)
+    }
+
+    fn describe_unexpected_element(&self, document: &DioxusDocument) -> TesterError {
+        self.full_query.describe_unexpected_element(document)
+    }
+
+    fn render_parent_dom(&self, document: &DioxusDocument) -> String {
+        self.full_query.render_parent_dom(document)
+    }
+}
+
+impl<Q: std::fmt::Display + Clone> std::fmt::Display for LastElementQuery<Q> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} (last element)", self.full_query)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::by_role;
