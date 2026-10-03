@@ -144,5 +144,5 @@ pub use accesskit::Role;
 pub use condition::{AllElementsCondition, ElementCondition, MAX_TRIES};
 pub use document::{DocumentTester, render};
 pub use element::ResolvedElement;
-pub use query::{QueryByRole, by_role, by_testid};
+pub use query::{QueryByAriaProperties, by_label, by_role, by_testid};
 pub use result::{Result, TesterError};

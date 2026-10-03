@@ -18,11 +18,11 @@ pub enum TesterError {
     /// DOM even though none was expected.
     UnexpectedElementWithTestId(String, String),
 
-    /// No element with the given role was found in the DOM.
-    NoSuchElementWithRole(String, String),
+    /// No element with the given ARIA properties was found in the DOM.
+    NoSuchElementWithAriaProperties(String, String),
 
-    /// An element with the given role was found in the DOM even though none was expected.
-    UnexpectedElementWithRole(String, String),
+    /// An element with the given ARIA properties was found in the DOM even though none was expected.
+    UnexpectedElementWithAriaProperties(String, String),
 
     /// No element matching the given CSS selector was found in the DOM.
     NoSuchElementWithCssSelector(String, String),
@@ -54,11 +54,11 @@ impl std::fmt::Display for TesterError {
             TesterError::UnexpectedElementWithTestId(id, dom) => {
                 write!(f, "Unexpected element with test ID `{id}`\nDOM is:\n{dom}")
             }
-            TesterError::NoSuchElementWithRole(role, dom) => {
-                write!(f, "No such element with role {role}\nDOM is:\n{dom}")
+            TesterError::NoSuchElementWithAriaProperties(properties, dom) => {
+                write!(f, "No such element with {properties}\nDOM is:\n{dom}")
             }
-            TesterError::UnexpectedElementWithRole(role, dom) => {
-                write!(f, "Unexpected element with role {role}\nDOM is:\n{dom}")
+            TesterError::UnexpectedElementWithAriaProperties(properties, dom) => {
+                write!(f, "Unexpected element with {properties}\nDOM is:\n{dom}")
             }
             TesterError::NoSuchElementWithCssSelector(selector, dom) => {
                 write!(
