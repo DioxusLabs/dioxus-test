@@ -355,6 +355,9 @@ pub fn by_role(role: Role) -> QueryByRole<'static> {
         description: None,
         level: None,
         hidden: Some(false),
+        expanded: None,
+        disabled: None,
+        selected: None,
         parent: None,
     }
 }
@@ -367,6 +370,9 @@ pub struct QueryByRole<'parent> {
     description: Option<Rc<dyn Matcher<String>>>,
     level: Option<Rc<dyn Matcher<usize>>>,
     hidden: Option<bool>,
+    expanded: Option<bool>,
+    disabled: Option<bool>,
+    selected: Option<bool>,
     parent: Option<&'parent dyn Query>,
 }
 
@@ -747,6 +753,133 @@ impl<'parent> QueryByRole<'parent> {
             ..self
         }
     }
+
+    /// Restricts this query to elements which are expanded or collapsed, as given by the
+    /// attribute `aria-expanded`.
+    ///
+    /// With `expanded(true)`, the query only matches elements with `aria-expanded="true"`. With
+    /// `expanded(false)`, it only matches elements with `aria-expanded="false"`. By default, a
+    /// query matches elements regardless of this attribute. See the
+    /// [W3C documentation](https://www.w3.org/TR/wai-aria-1.2/#aria-expanded) for details on the
+    /// attribute.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, matchers::{eq, inner_html}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         button { "aria-expanded": "false", "Collapsed button" }
+    ///         button { "aria-expanded": "true", "Expanded button" }
+    ///     }
+    /// }
+    ///
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::Button).expanded(true))
+    ///     .expect(inner_html(eq("Expanded button")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// tester
+    ///     .query(by_role(Role::Button).expanded(false))
+    ///     .expect(inner_html(eq("Collapsed button")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// ```
+    ///
+    /// An element without an `aria-expanded` attribute is neither expanded nor collapsed, so it
+    /// is matched by neither `expanded(true)` nor `expanded(false)`.
+    pub fn expanded(self, expanded: bool) -> Self {
+        Self {
+            expanded: Some(expanded),
+            ..self
+        }
+    }
+
+    /// Restricts this query to elements which are, or are not, disabled, as given by the
+    /// attribute `aria-disabled`.
+    ///
+    /// With `disabled(true)`, the query only matches elements with `aria-disabled="true"`. With
+    /// `disabled(false)`, it only matches elements which are _not_ disabled, including those
+    /// without an `aria-disabled` attribute. By default, a query matches elements regardless of
+    /// whether they are disabled. See the
+    /// [W3C documentation](https://www.w3.org/TR/wai-aria-1.2/#aria-disabled) for details on the
+    /// attribute.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, matchers::{eq, inner_html}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         button { "Enabled button" }
+    ///         button { "aria-disabled": "true", "Disabled button" }
+    ///     }
+    /// }
+    ///
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::Button).disabled(true))
+    ///     .expect(inner_html(eq("Disabled button")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// tester
+    ///     .query(by_role(Role::Button).disabled(false))
+    ///     .expect(inner_html(eq("Enabled button")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// ```
+    pub fn disabled(self, disabled: bool) -> Self {
+        Self {
+            disabled: Some(disabled),
+            ..self
+        }
+    }
+
+    /// Restricts this query to elements which are selected or not selected, as given by the
+    /// attribute `aria-selected`.
+    ///
+    /// With `selected(true)`, the query only matches elements with `aria-selected="true"`. With
+    /// `selected(false)`, it only matches elements with `aria-selected="false"`. By default, a
+    /// query matches elements regardless of this attribute. See the
+    /// [W3C documentation](https://www.w3.org/TR/wai-aria-1.2/#aria-selected) for details on the
+    /// attribute.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, matchers::{eq, inner_html}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         div { role: "tab", "aria-selected": "false", "Unselected tab" }
+    ///         div { role: "tab", "aria-selected": "true", "Selected tab" }
+    ///     }
+    /// }
+    ///
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::Tab).selected(true))
+    ///     .expect(inner_html(eq("Selected tab")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// tester
+    ///     .query(by_role(Role::Tab).selected(false))
+    ///     .expect(inner_html(eq("Unselected tab")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// ```
+    ///
+    /// An element without an `aria-selected` attribute is neither selected nor unselected, so it
+    /// is matched by neither `selected(true)` nor `selected(false)`.
+    pub fn selected(self, selected: bool) -> Self {
+        Self {
+            selected: Some(selected),
+            ..self
+        }
+    }
 }
 
 impl<'parent> Query for QueryByRole<'parent> {
@@ -859,6 +992,15 @@ impl<'parent> QueryByRole<'parent> {
                     .is_some_and(|actual| level.matches(&(actual + 1)).is_match())
             })
             && self.hidden.is_none_or(|hidden| node.is_hidden() == hidden)
+            && self
+                .expanded
+                .is_none_or(|expanded| node.is_expanded() == Some(expanded))
+            && self
+                .disabled
+                .is_none_or(|disabled| node.is_disabled() == disabled)
+            && self
+                .selected
+                .is_none_or(|selected| node.is_selected() == Some(selected))
     }
 
     fn describe_self(&self) -> String {
@@ -891,6 +1033,21 @@ impl<'parent> QueryByRole<'parent> {
             Some(true) => result.push_str(" only hidden"),
             Some(false) => {}
             None => result.push_str(" including hidden"),
+        }
+        match self.expanded {
+            Some(true) => result.push_str(" being expanded"),
+            Some(false) => result.push_str(" being collapsed"),
+            None => {}
+        }
+        match self.disabled {
+            Some(true) => result.push_str(" being disabled"),
+            Some(false) => result.push_str(" not being disabled"),
+            None => {}
+        }
+        match self.selected {
+            Some(true) => result.push_str(" being selected"),
+            Some(false) => result.push_str(" being unselected"),
+            None => {}
         }
         result
     }
@@ -929,6 +1086,21 @@ impl<'parent> std::fmt::Display for QueryByRole<'parent> {
             Some(true) => write!(f, " only hidden")?,
             Some(false) => {}
             None => write!(f, " including hidden")?,
+        }
+        match self.expanded {
+            Some(true) => write!(f, " being expanded")?,
+            Some(false) => write!(f, " being collapsed")?,
+            None => {}
+        }
+        match self.disabled {
+            Some(true) => write!(f, " being disabled")?,
+            Some(false) => write!(f, " not being disabled")?,
+            None => {}
+        }
+        match self.selected {
+            Some(true) => write!(f, " being selected")?,
+            Some(false) => write!(f, " being unselected")?,
+            None => {}
         }
         Ok(())
     }
@@ -1212,6 +1384,426 @@ mod tests {
         tester
             .query_all(by_role(Role::Button).include_hidden())
             .expect(len(eq(3)))
+            .immediately()
+    }
+
+    #[test]
+    fn by_role_display_format_contains_expanded_true() -> TestResult<()> {
+        let query = by_role(Role::Button).expanded(true);
+
+        verify_that!(format!("{query}"), eq(r#"role="Button" being expanded"#))
+    }
+
+    #[test]
+    fn by_role_display_format_contains_expanded_false() -> TestResult<()> {
+        let query = by_role(Role::Button).expanded(false);
+
+        verify_that!(format!("{query}"), eq(r#"role="Button" being collapsed"#))
+    }
+
+    #[test]
+    fn failure_message_for_query_by_role_includes_expanded_true() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-expanded": "false", "Collapsed button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_role(Role::Button).expanded(true))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                "No such element with role Button being expanded"
+            )))
+        )
+    }
+
+    #[test]
+    fn failure_message_for_query_by_role_includes_expanded_false() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-expanded": "true", "Expanded button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_role(Role::Button).expanded(false))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                "No such element with role Button being collapsed"
+            )))
+        )
+    }
+
+    #[test]
+    fn expanded_true_matches_only_element_with_aria_expanded_true() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "No attribute button" }
+                button { "aria-expanded": "false", "Collapsed button" }
+                button { "aria-expanded": "true", "Expanded button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button).expanded(true))
+            .expect(len(eq(1)))
+            .immediately()?;
+        tester
+            .query(by_role(Role::Button).expanded(true))
+            .expect(inner_html(eq("Expanded button")))
+            .immediately()
+    }
+
+    #[test]
+    fn expanded_false_matches_only_element_with_aria_expanded_false() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "No attribute button" }
+                button { "aria-expanded": "false", "Collapsed button" }
+                button { "aria-expanded": "true", "Expanded button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button).expanded(false))
+            .expect(len(eq(1)))
+            .immediately()?;
+        tester
+            .query(by_role(Role::Button).expanded(false))
+            .expect(inner_html(eq("Collapsed button")))
+            .immediately()
+    }
+
+    #[test]
+    fn by_role_matches_regardless_of_expanded_by_default() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "No attribute button" }
+                button { "aria-expanded": "false", "Collapsed button" }
+                button { "aria-expanded": "true", "Expanded button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button))
+            .expect(len(eq(3)))
+            .immediately()
+    }
+
+    #[test]
+    fn expanded_combines_with_only_hidden() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-expanded": "true", "aria-hidden": "true", "Hidden button" }
+                button { "aria-expanded": "true", "Visible button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(by_role(Role::Button).expanded(true).only_hidden())
+            .expect(inner_html(eq("Hidden button")))
+            .immediately()
+    }
+
+    #[test]
+    fn by_role_display_format_contains_disabled_true() -> TestResult<()> {
+        let query = by_role(Role::Button).disabled(true);
+
+        verify_that!(format!("{query}"), eq(r#"role="Button" being disabled"#))
+    }
+
+    #[test]
+    fn by_role_display_format_contains_disabled_false() -> TestResult<()> {
+        let query = by_role(Role::Button).disabled(false);
+
+        verify_that!(
+            format!("{query}"),
+            eq(r#"role="Button" not being disabled"#)
+        )
+    }
+
+    #[test]
+    fn failure_message_for_query_by_role_includes_disabled_true() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "Enabled button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_role(Role::Button).disabled(true))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                "No such element with role Button being disabled"
+            )))
+        )
+    }
+
+    #[test]
+    fn failure_message_for_query_by_role_includes_disabled_false() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-disabled": "true", "Disabled button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_role(Role::Button).disabled(false))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                "No such element with role Button not being disabled"
+            )))
+        )
+    }
+
+    #[test]
+    fn disabled_true_matches_only_element_with_aria_disabled_true() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "No attribute button" }
+                button { "aria-disabled": "false", "Enabled button" }
+                button { "aria-disabled": "true", "Disabled button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button).disabled(true))
+            .expect(len(eq(1)))
+            .immediately()?;
+        tester
+            .query(by_role(Role::Button).disabled(true))
+            .expect(inner_html(eq("Disabled button")))
+            .immediately()
+    }
+
+    #[test]
+    fn disabled_false_matches_elements_without_aria_disabled_true() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "No attribute button" }
+                button { "aria-disabled": "false", "Enabled button" }
+                button { "aria-disabled": "true", "Disabled button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button).disabled(false))
+            .expect(len(eq(2)))
+            .immediately()
+    }
+
+    #[test]
+    fn by_role_matches_regardless_of_disabled_by_default() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "No attribute button" }
+                button { "aria-disabled": "false", "Enabled button" }
+                button { "aria-disabled": "true", "Disabled button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button))
+            .expect(len(eq(3)))
+            .immediately()
+    }
+
+    #[test]
+    fn disabled_combines_with_name() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-disabled": "true", "First button" }
+                button { "aria-disabled": "true", "Second button" }
+                button { "Second button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(
+                by_role(Role::Button)
+                    .having_name(eq("Second button"))
+                    .disabled(true),
+            )
+            .expect(len(eq(1)))
+            .immediately()
+    }
+
+    #[test]
+    fn by_role_display_format_contains_selected_true() -> TestResult<()> {
+        let query = by_role(Role::Tab).selected(true);
+
+        verify_that!(format!("{query}"), eq(r#"role="Tab" being selected"#))
+    }
+
+    #[test]
+    fn by_role_display_format_contains_selected_false() -> TestResult<()> {
+        let query = by_role(Role::Tab).selected(false);
+
+        verify_that!(format!("{query}"), eq(r#"role="Tab" being unselected"#))
+    }
+
+    #[test]
+    fn failure_message_for_query_by_role_includes_selected_true() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div { role: "tab", "aria-selected": "false", "Unselected tab" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_role(Role::Tab).selected(true))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                "No such element with role Tab being selected"
+            )))
+        )
+    }
+
+    #[test]
+    fn failure_message_for_query_by_role_includes_selected_false() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div { role: "tab", "aria-selected": "true", "Selected tab" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_role(Role::Tab).selected(false))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                "No such element with role Tab being unselected"
+            )))
+        )
+    }
+
+    #[test]
+    fn selected_true_matches_only_element_with_aria_selected_true() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div { role: "tab", "No attribute tab" }
+                div { role: "tab", "aria-selected": "false", "Unselected tab" }
+                div { role: "tab", "aria-selected": "true", "Selected tab" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Tab).selected(true))
+            .expect(len(eq(1)))
+            .immediately()?;
+        tester
+            .query(by_role(Role::Tab).selected(true))
+            .expect(inner_html(eq("Selected tab")))
+            .immediately()
+    }
+
+    #[test]
+    fn selected_false_matches_only_element_with_aria_selected_false() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div { role: "tab", "No attribute tab" }
+                div { role: "tab", "aria-selected": "false", "Unselected tab" }
+                div { role: "tab", "aria-selected": "true", "Selected tab" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Tab).selected(false))
+            .expect(len(eq(1)))
+            .immediately()?;
+        tester
+            .query(by_role(Role::Tab).selected(false))
+            .expect(inner_html(eq("Unselected tab")))
+            .immediately()
+    }
+
+    #[test]
+    fn by_role_matches_regardless_of_selected_by_default() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div { role: "tab", "No attribute tab" }
+                div { role: "tab", "aria-selected": "false", "Unselected tab" }
+                div { role: "tab", "aria-selected": "true", "Selected tab" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Tab))
+            .expect(len(eq(3)))
+            .immediately()
+    }
+
+    #[test]
+    fn selected_combines_with_name() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div { role: "tab", "aria-selected": "true", "First tab" }
+                div { role: "tab", "aria-selected": "true", "Second tab" }
+                div { role: "tab", "aria-selected": "false", "Second tab (not selected)" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(
+                by_role(Role::Tab)
+                    .having_name(contains_substring("Second tab"))
+                    .selected(true),
+            )
+            .expect(inner_html(eq("Second tab")))
             .immediately()
     }
 }
