@@ -341,31 +341,135 @@ fn render_parent_dom(parent: Option<&dyn Query>, document: &DioxusDocument) -> S
 /// ```
 ///
 /// Only elements which ae not hidden from assistive technology are matched by default. To include
-/// hidden elements, use the methods [`include_hidden`][crate::QueryByRole::include_hidden] or
-/// [`only_hidden`][crate::QueryByRole::only_hidden]. These only affect elements which are included
-/// in the ARIA tree but hidden via the attribute `aria-hidden`, not those which are completely
-/// removed from the ARIA tree via CSS selector or the HTML `hidden` attribute.
+/// hidden elements, use the methods [`include_hidden`][crate::QueryByAriaProperties::include_hidden]
+/// or [`only_hidden`][crate::QueryByAriaProperties::only_hidden]. These only affect elements which
+/// are included in the ARIA tree but hidden via the attribute `aria-hidden`, not those which are
+/// completely removed from the ARIA tree via CSS selector or the HTML `hidden` attribute.
 ///
 /// Elements which are hidden from the accessibility tree altogether via the `hidden` attribute or
 /// the CSS properties `display: none` and `visibility: hidden` cannot be queried with this method.
-pub fn by_role(role: Role) -> QueryByRole<'static> {
-    QueryByRole {
-        role,
-        name: None,
-        description: None,
-        level: None,
+pub fn by_role(role: Role) -> QueryByAriaProperties<'static> {
+    QueryByAriaProperties {
+        role: Some(role),
         hidden: Some(false),
-        expanded: None,
-        disabled: None,
-        selected: None,
-        parent: None,
+        ..Default::default()
     }
 }
 
-#[derive(Clone)]
-#[doc(hidden)]
-pub struct QueryByRole<'parent> {
-    role: Role,
+/// Returns a query selector matching elements whose label is matched by the given matcher.
+///
+/// The label of an element is its ARIA accessible name. See
+/// [W3C documentation](https://w3c.github.io/accname/#dfn-accessible-name) for more
+/// information.
+///
+/// ```
+/// use dioxus::prelude::*;
+/// use dioxus_test::{Role, by_label, by_testid, matchers::{eq, inner_html}, render};
+///
+/// #[component]
+/// fn MyComponent() -> Element {
+///     let mut output = use_signal(|| "");
+///     rsx! {
+///         button {
+///              onclick: move |_| {
+///                  output.set("Wrong button clicked")
+///              },
+///              "Do not click me!"
+///         }
+///         button {
+///              onclick: move |_| {
+///                  output.set("Right button clicked")
+///              },
+///              "Click me!"
+///         }
+///         div {
+///              "data-testid": "output",
+///              {output}
+///         }
+///     }
+/// }
+///
+/// # async fn test_fn() {
+/// let tester = render(MyComponent);
+/// tester
+///     .query(by_label(eq("Click me!")))
+///     .click()
+///     .await
+///     .unwrap();
+///
+/// tester
+///     .query(by_testid("output"))
+///     .expect(inner_html(eq("Right button clicked")))
+///     .immediately()
+///     .unwrap();
+/// # }
+/// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+/// ```
+///
+/// You can use the following matchers:
+///
+/// - [`eq`][crate::matchers::eq] for exact equality,
+/// - [`contains_substring`][crate::matchers::contains_substring] for string containment,
+/// - [`starts_with`][crate::matchers::starts_with] to match the start of the string,
+/// - [`ends_with`][crate::matchers::ends_with] to match the end of the string,
+/// - [`matches_regex`][crate::matchers::matches_regex] to match names fully satisfying the
+///   given regular expression,
+/// - [`contains_regex`][crate::matchers::contains_regex] to match names containing a substring
+///   satisfying the given regular expression.
+///
+/// For case-insensitive matching, invoke the method
+/// [`ignoring_ascii_case`][crate::matchers::StrMatcherConfigurator::ignoring_ascii_case]. This
+/// is available on all matchers above _except_ `matches_regex` and `contains_regex`.
+///
+/// ```
+/// use dioxus::prelude::*;
+/// use dioxus_test::{Role, by_label, by_testid, matchers::{eq, inner_html, StrMatcherConfigurator as _}, render};
+///
+/// #[component]
+/// fn MyComponent() -> Element {
+///     let mut output = use_signal(|| "");
+///     rsx! {
+///         button {
+///              onclick: move |_| {
+///                  output.set("Button clicked")
+///              },
+///              "Click me!"
+///         }
+///         div {
+///              "data-testid": "output",
+///              {output}
+///         }
+///     }
+/// }
+///
+/// # async fn test_fn() {
+/// let tester = render(MyComponent);
+/// tester
+///     .query(by_label(eq("click ME!").ignoring_ascii_case()))
+///     .click()
+///     .await
+///     .unwrap();
+///
+/// tester
+///     .query(by_testid("output"))
+///     .expect(inner_html(eq("Button clicked")))
+///     .immediately()
+///     .unwrap();
+/// # }
+/// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+/// ```
+pub fn by_label(label: impl Matcher<String> + 'static) -> QueryByAriaProperties<'static> {
+    QueryByAriaProperties {
+        name: Some(Rc::new(label)),
+        hidden: Some(false),
+        ..Default::default()
+    }
+}
+
+/// A query matching elements based on their [ARIA](https://www.w3.org/TR/wai-aria-1.2/) properties.
+#[derive(Clone, Default)]
+pub struct QueryByAriaProperties<'parent> {
+    role: Option<Role>,
     name: Option<Rc<dyn Matcher<String>>>,
     description: Option<Rc<dyn Matcher<String>>>,
     level: Option<Rc<dyn Matcher<usize>>>,
@@ -376,7 +480,7 @@ pub struct QueryByRole<'parent> {
     parent: Option<&'parent dyn Query>,
 }
 
-impl<'parent> QueryByRole<'parent> {
+impl<'parent> QueryByAriaProperties<'parent> {
     /// Restricts this query to elements having the an accessible name matched by the given matcher.
     ///
     /// See [W3C documentation](https://w3c.github.io/accname/#dfn-accessible-name) for information
@@ -426,58 +530,7 @@ impl<'parent> QueryByRole<'parent> {
     /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
     /// ```
     ///
-    /// You can use the following matchers:
-    ///
-    /// - [`eq`][crate::matchers::eq] for exact equality,
-    /// - [`contains_substring`][crate::matchers::contains_substring] for string containment,
-    /// - [`starts_with`][crate::matchers::starts_with] to match the start of the string,
-    /// - [`ends_with`][crate::matchers::ends_with] to match the end of the string,
-    /// - [`matches_regex`][crate::matchers::matches_regex] to match names fully satisfying the
-    ///   given regular expression,
-    /// - [`contains_regex`][crate::matchers::contains_regex] to match names containing a substring
-    ///   satisfying the given regular expression.
-    ///
-    /// For case-insensitive matching, invoke the method
-    /// [`ignoring_ascii_case`][crate::matchers::StrMatcherConfigurator::ignoring_ascii_case]. This
-    /// is available on all matchers above _except_ `matches_regex` and `contains_regex`.
-    ///
-    /// ```
-    /// use dioxus::prelude::*;
-    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html, StrMatcherConfigurator as _}, render};
-    ///
-    /// #[component]
-    /// fn MyComponent() -> Element {
-    ///     let mut output = use_signal(|| "");
-    ///     rsx! {
-    ///         button {
-    ///              onclick: move |_| {
-    ///                  output.set("Button clicked")
-    ///              },
-    ///              "Click me!"
-    ///         }
-    ///         div {
-    ///              "data-testid": "output",
-    ///              {output}
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// # async fn test_fn() {
-    /// let tester = render(MyComponent);
-    /// tester
-    ///     .query(by_role(Role::Button).having_name(eq("click ME!").ignoring_ascii_case()))
-    ///     .click()
-    ///     .await
-    ///     .unwrap();
-    ///
-    /// tester
-    ///     .query(by_testid("output"))
-    ///     .expect(inner_html(eq("Button clicked")))
-    ///     .immediately()
-    ///     .unwrap();
-    /// # }
-    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
-    /// ```
+    /// See [`by_label`] for more information about the matchers one can use with this method.
     pub fn having_name(self, name: impl Matcher<String> + 'static) -> Self {
         Self {
             name: Some(Rc::new(name)),
@@ -537,59 +590,7 @@ impl<'parent> QueryByRole<'parent> {
     /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
     /// ```
     ///
-    /// You can use the following matchers:
-    ///
-    /// - [`eq`][crate::matchers::eq] for exact equality,
-    /// - [`contains_substring`][crate::matchers::contains_substring] for string containment,
-    /// - [`starts_with`][crate::matchers::starts_with] to match the start of the string,
-    /// - [`ends_with`][crate::matchers::ends_with] to match the end of the string,
-    /// - [`matches_regex`][crate::matchers::matches_regex] to match names fully satisfying the
-    ///   given regular expression,
-    /// - [`contains_regex`][crate::matchers::contains_regex] to match names containing a substring
-    ///   satisfying the given regular expression.
-    ///
-    /// For case-insensitive matching, invoke the method
-    /// [`ignoring_ascii_case`][crate::matchers::StrMatcherConfigurator::ignoring_ascii_case]. This
-    /// is available on all matchers above _except_ `matches_regex` and `contains_regex`.
-    ///
-    /// ```
-    /// use dioxus::prelude::*;
-    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html, StrMatcherConfigurator as _}, render};
-    ///
-    /// #[component]
-    /// fn MyComponent() -> Element {
-    ///     let mut output = use_signal(|| "");
-    ///     rsx! {
-    ///         button {
-    ///              onclick: move |_| {
-    ///                  output.set("Button clicked")
-    ///              },
-    ///              "aria-description": "Click me!",
-    ///              "Generic button"
-    ///         }
-    ///         div {
-    ///              "data-testid": "output",
-    ///              {output}
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// # async fn test_fn() {
-    /// let tester = render(MyComponent);
-    /// tester
-    ///     .query(by_role(Role::Button).having_description(eq("click ME!").ignoring_ascii_case()))
-    ///     .click()
-    ///     .await
-    ///     .unwrap();
-    ///
-    /// tester
-    ///     .query(by_testid("output"))
-    ///     .expect(inner_html(eq("Button clicked")))
-    ///     .immediately()
-    ///     .unwrap();
-    /// # }
-    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
-    /// ```
+    /// See [`by_label`] for more information about the matchers one can use with this method.
     pub fn having_description(self, description: impl Matcher<String> + 'static) -> Self {
         Self {
             description: Some(Rc::new(description)),
@@ -882,7 +883,7 @@ impl<'parent> QueryByRole<'parent> {
     }
 }
 
-impl<'parent> Query for QueryByRole<'parent> {
+impl<'parent> Query for QueryByAriaProperties<'parent> {
     fn get_first_element(&self, document: &DioxusDocument) -> Option<blitz_dom::NodeId> {
         let aria_tree = AriaTree::for_document(document);
         let starting_node_id = self.get_starting_node_id(document)?;
@@ -910,7 +911,7 @@ impl<'parent> Query for QueryByRole<'parent> {
         {
             parent.describe_failure(document)
         } else {
-            TesterError::NoSuchElementWithRole(
+            TesterError::NoSuchElementWithAriaProperties(
                 self.describe_self(),
                 self.render_parent_dom(document),
             )
@@ -923,7 +924,7 @@ impl<'parent> Query for QueryByRole<'parent> {
         {
             parent.describe_unexpected_element(document)
         } else {
-            TesterError::UnexpectedElementWithRole(
+            TesterError::UnexpectedElementWithAriaProperties(
                 self.describe_self(),
                 self.render_parent_dom(document),
             )
@@ -931,7 +932,7 @@ impl<'parent> Query for QueryByRole<'parent> {
     }
 }
 
-impl<'parent> QueryByRole<'parent> {
+impl<'parent> QueryByAriaProperties<'parent> {
     fn get_starting_node_id(&self, document: &DioxusDocument) -> Option<blitz_dom::NodeId> {
         if let Some(parent) = &self.parent {
             parent.get_first_element(document)
@@ -975,7 +976,7 @@ impl<'parent> QueryByRole<'parent> {
     }
 
     fn element_matches(&self, node: &accesskit::Node, aria_tree: &AriaTree) -> bool {
-        node.role() == self.role
+        self.role.is_none_or(|role| role == node.role())
             && self.name.as_ref().is_none_or(|name| {
                 name.matches(&aria_tree.compute_accessible_name(node))
                     .is_match()
@@ -1004,14 +1005,19 @@ impl<'parent> QueryByRole<'parent> {
     }
 
     fn describe_self(&self) -> String {
-        let mut result = format!("{:?}", self.role);
-        if let Some(name) = &self.name {
-            write!(
-                result,
-                " having accessible name {}",
-                name.describe(MatcherResult::Match)
-            )
-            .unwrap(); // Infallible
+        let mut result = String::new();
+        if let Some(role) = self.role {
+            write!(result, "role {role:?}").unwrap(); // Infallible
+            if let Some(name) = &self.name {
+                write!(
+                    result,
+                    " having accessible name {}",
+                    name.describe(MatcherResult::Match)
+                )
+                .unwrap(); // Infallible
+            }
+        } else if let Some(name) = &self.name {
+            write!(result, "label {}", name.describe(MatcherResult::Match)).unwrap(); // Infallible
         }
         if let Some(description) = &self.description {
             write!(
@@ -1053,20 +1059,24 @@ impl<'parent> QueryByRole<'parent> {
     }
 }
 
-impl<'parent> ParentableQuery for QueryByRole<'parent> {
+impl<'parent> ParentableQuery for QueryByAriaProperties<'parent> {
     fn with_parent(self, parent: &dyn Query) -> impl ParentableQuery + Clone {
-        QueryByRole {
+        QueryByAriaProperties {
             parent: Some(parent),
             ..self
         }
     }
 }
 
-impl<'parent> std::fmt::Display for QueryByRole<'parent> {
+impl<'parent> std::fmt::Display for QueryByAriaProperties<'parent> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, r#"role="{:?}""#, self.role)?;
-        if let Some(name) = &self.name {
-            write!(f, r#" having name {}"#, name.describe(MatcherResult::Match))?;
+        if let Some(role) = self.role {
+            write!(f, r#"role="{role:?}""#)?;
+            if let Some(name) = &self.name {
+                write!(f, r#" having name {}"#, name.describe(MatcherResult::Match))?;
+            }
+        } else if let Some(name) = &self.name {
+            write!(f, r#"label {}"#, name.describe(MatcherResult::Match))?;
         }
         if let Some(description) = &self.description {
             write!(
@@ -1106,7 +1116,7 @@ impl<'parent> std::fmt::Display for QueryByRole<'parent> {
     }
 }
 
-impl<'parent> IntoQuery for QueryByRole<'parent> {
+impl<'parent> IntoQuery for QueryByAriaProperties<'parent> {
     type Query = Self;
 
     fn into_query(self) -> Self::Query {
@@ -1117,7 +1127,7 @@ impl<'parent> IntoQuery for QueryByRole<'parent> {
 #[cfg(test)]
 mod tests {
     use super::by_role;
-    use crate::{matchers::inner_html, render};
+    use crate::{by_label, matchers::inner_html, render};
     use accesskit::Role;
     use dioxus::prelude::*;
     use test_that::prelude::*;
@@ -1805,5 +1815,56 @@ mod tests {
             )
             .expect(inner_html(eq("Second tab")))
             .immediately()
+    }
+
+    #[test]
+    fn failure_message_for_query_by_label_includes_just_label() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {}
+        }
+        let tester = render(TestComponent);
+
+        let result = tester.query(by_label(eq("A button"))).immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                r#"No such element with label is equal to "A button""#
+            )))
+        )
+    }
+
+    #[test]
+    fn failure_message_for_unexpected_element_query_by_label_includes_just_label() -> TestResult<()>
+    {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button {
+                    "A button"
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_label(eq("A button")))
+            .expect_no_matching_element()
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                r#"Unexpected element with label is equal to "A button""#
+            )))
+        )
+    }
+
+    #[test]
+    fn by_label_display_format_contains_label() -> TestResult<()> {
+        let query = by_label(eq("A button"));
+
+        verify_that!(format!("{query}"), eq(r#"label is equal to "A button""#))
     }
 }
