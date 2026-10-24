@@ -5,7 +5,10 @@ use dioxus_native_dom::DioxusDocument;
 use smallvec::SmallVec;
 use std::{collections::HashMap, fmt::Write as _, rc::Rc};
 use style::dom_apis::{MayUseInvalidation, QueryAll, QueryFirst, query_selector};
-use test_that::matcher::{Matcher, MatcherResult};
+use test_that::{
+    matcher::{Matcher, MatcherResult},
+    matchers::{none, some},
+};
 
 /// A value which can be turned into a CSS selector to query the DOM.
 ///
@@ -455,19 +458,21 @@ pub fn by_role(role: Role) -> QueryByAriaProperties<'static> {
 /// # }
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
 /// ```
-pub fn by_name(label: impl Matcher<String> + 'static) -> QueryByAriaProperties<'static> {
+pub fn by_name(label: impl for<'a> Matcher<&'a str> + 'static) -> QueryByAriaProperties<'static> {
     QueryByAriaProperties {
-        name: Some(Rc::new(label)),
+        name: Some(Rc::new(some(label))),
         hidden: Some(false),
         ..Default::default()
     }
 }
 
+type OptionStringSliceMatcher = dyn for<'a> Matcher<Option<&'a str>>;
+
 /// A query matching elements based on their [ARIA](https://www.w3.org/TR/wai-aria-1.2/) properties.
 #[derive(Clone, Default)]
 pub struct QueryByAriaProperties<'parent> {
     role: Option<Role>,
-    name: Option<Rc<dyn Matcher<String>>>,
+    name: Option<Rc<OptionStringSliceMatcher>>,
     level: Option<Rc<dyn Matcher<usize>>>,
     hidden: Option<bool>,
     expanded: Option<bool>,
@@ -477,7 +482,7 @@ pub struct QueryByAriaProperties<'parent> {
 }
 
 impl<'parent> QueryByAriaProperties<'parent> {
-    /// Restricts this query to elements having the an accessible name matched by the given matcher.
+    /// Restricts this query to elements having an accessible name matched by the given matcher.
     ///
     /// See [W3C documentation](https://w3c.github.io/accname/#dfn-accessible-name) for information
     /// on the accessible name of an element.
@@ -527,9 +532,43 @@ impl<'parent> QueryByAriaProperties<'parent> {
     /// ```
     ///
     /// See [`by_name`] for more information about the matchers one can use with this method.
-    pub fn having_name(self, name: impl Matcher<String> + 'static) -> Self {
+    pub fn having_name(self, name: impl for<'a> Matcher<&'a str> + 'static) -> Self {
         Self {
-            name: Some(Rc::new(name)),
+            name: Some(Rc::new(some(name))),
+            ..self
+        }
+    }
+
+    /// Restricts this query to elements having no accessible name as defined by the
+    /// [W3C specification](https://w3c.github.io/accname/#dfn-accessible-name).
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html, len}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         button {}
+    ///         button {
+    ///              "This button has an accessible name"
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # async fn test_fn() {
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query_all(by_role(Role::Button).having_no_name())
+    ///     .expect(len(eq(1)))
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+    /// ```
+    pub fn having_no_name(self) -> Self {
+        Self {
+            name: Some(Rc::new(none())),
             ..self
         }
     }
@@ -927,10 +966,10 @@ impl<'parent> QueryByAriaProperties<'parent> {
 
     fn element_matches(&self, node: &accesskit::Node, is_hidden: bool) -> bool {
         self.role.is_none_or(|role| role == node.role())
-            && self.name.as_ref().is_none_or(|name| {
-                name.matches(&node.label().map(|s| s.to_string()).unwrap_or_default())
-                    .is_match()
-            })
+            && self
+                .name
+                .as_ref()
+                .is_none_or(|name| name.matches(&node.label()).is_match())
             && self.level.as_ref().is_none_or(|level| {
                 // accesskit levels are zero-based, while ARIA levels are one-based.
                 // See https://docs.rs/accesskit/latest/accesskit/struct.Node.html#method.level
@@ -1195,6 +1234,38 @@ mod tests {
             format!("{query}"),
             eq(r#"role="Heading" having level is equal to 3"#)
         )
+    }
+
+    #[test]
+    fn having_name_with_empty_string_does_not_match_unnamed_element() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button {}
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(by_role(Role::Button).having_name(eq("")))
+            .expect_no_matching_element()
+            .immediately()
+    }
+
+    #[test]
+    fn having_no_name_does_not_match_named_element() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "A button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(by_role(Role::Button).having_no_name())
+            .expect_no_matching_element()
+            .immediately()
     }
 
     #[test]
@@ -1877,7 +1948,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                r#"No such element with name is equal to "A button""#
+                r#"No such element with name has a value which is equal to "A button""#
             )))
         )
     }
@@ -1902,7 +1973,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                r#"Unexpected element with name is equal to "A button""#
+                r#"Unexpected element with name has a value which is equal to "A button""#
             )))
         )
     }
@@ -1911,6 +1982,9 @@ mod tests {
     fn by_name_display_format_contains_name() -> TestResult<()> {
         let query = by_name(eq("A button"));
 
-        verify_that!(format!("{query}"), eq(r#"name is equal to "A button""#))
+        verify_that!(
+            format!("{query}"),
+            contains_substring(r#"is equal to "A button""#)
+        )
     }
 }
