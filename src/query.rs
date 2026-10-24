@@ -637,6 +637,40 @@ impl<'parent> QueryByAriaProperties<'parent> {
         }
     }
 
+    /// Restricts this query to elements having no accessible description as defined by the
+    /// [W3C specification](https://w3c.github.io/accname/#dfn-accessible-description).
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html, len}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         div {}
+    ///         div {
+    ///              "aria-description": "This div has an accessible description"
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # async fn test_fn() {
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query_all(by_role(Role::GenericContainer).having_no_description())
+    ///     .expect(len(eq(1)))
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+    /// ```
+    pub fn having_no_description(self) -> Self {
+        Self {
+            description: Some(Rc::new(none())),
+            ..self
+        }
+    }
+
     /// Restricts this query to elements having an ARIA level matched by the given matcher.
     ///
     /// The level is one-based, as in the
@@ -1490,6 +1524,45 @@ mod tests {
 
         tester
             .query(by_role(Role::Button).having_description(eq("")))
+            .expect_no_matching_element()
+            .immediately()
+    }
+
+    #[test]
+    fn having_no_description_matches_undescribed_element() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "Undescribed button" }
+                button { "aria-description": "A description", "Described button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button).having_no_description())
+            .expect(len(eq(1)))
+            .immediately()?;
+        tester
+            .query(by_role(Role::Button).having_no_description())
+            .expect(inner_html(eq("Undescribed button")))
+            .immediately()
+    }
+
+    #[test]
+    fn having_no_description_does_not_match_element_described_by_aria_describedby()
+    -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-describedby": "description", "A button" }
+                span { id: "description", "A description" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(by_role(Role::Button).having_no_description())
             .expect_no_matching_element()
             .immediately()
     }
