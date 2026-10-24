@@ -473,6 +473,7 @@ type OptionStringSliceMatcher = dyn for<'a> Matcher<Option<&'a str>>;
 pub struct QueryByAriaProperties<'parent> {
     role: Option<Role>,
     name: Option<Rc<OptionStringSliceMatcher>>,
+    description: Option<Rc<OptionStringSliceMatcher>>,
     level: Option<Rc<dyn Matcher<usize>>>,
     hidden: Option<bool>,
     expanded: Option<bool>,
@@ -572,6 +573,66 @@ impl<'parent> QueryByAriaProperties<'parent> {
     pub fn having_no_name(self) -> Self {
         Self {
             name: Some(Rc::new(none())),
+            ..self
+        }
+    }
+
+    /// Restricts this query to elements having an accessible description matched by the given
+    /// matcher.
+    ///
+    /// See [W3C documentation](https://w3c.github.io/aria/accname/#dfn-accessible-description) for
+    /// information on the accessible description of an element.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut output = use_signal(|| "");
+    ///     rsx! {
+    ///         button {
+    ///              onclick: move |_| {
+    ///                  output.set("Wrong button clicked")
+    ///              },
+    ///              "aria-description": "Do not click!",
+    ///              "Generic buton"
+    ///         }
+    ///         button {
+    ///              onclick: move |_| {
+    ///                  output.set("Right button clicked")
+    ///              },
+    ///              "aria-description": "Click me!",
+    ///              "Generic button"
+    ///         }
+    ///         div {
+    ///              "data-testid": "output",
+    ///              {output}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # async fn test_fn() {
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::Button).having_description(eq("Click me!")))
+    ///     .click()
+    ///     .await
+    ///     .unwrap();
+    ///
+    /// tester
+    ///     .query(by_testid("output"))
+    ///     .expect(inner_html(eq("Right button clicked")))
+    ///     .immediately()
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+    /// ```
+    ///
+    /// See [`by_name`] for more information about the matchers one can use with this method.
+    pub fn having_description(self, description: impl for<'a> Matcher<&'a str> + 'static) -> Self {
+        Self {
+            description: Some(Rc::new(some(description))),
             ..self
         }
     }
@@ -991,6 +1052,10 @@ impl<'parent> QueryByAriaProperties<'parent> {
                 name.matches(&if is_hidden { None } else { node.label() })
                     .is_match()
             })
+            && self
+                .description
+                .as_ref()
+                .is_none_or(|description| description.matches(&node.description()).is_match())
             && self.level.as_ref().is_none_or(|level| {
                 // accesskit levels are zero-based, while ARIA levels are one-based.
                 // See https://docs.rs/accesskit/latest/accesskit/struct.Node.html#method.level
@@ -1023,6 +1088,14 @@ impl<'parent> QueryByAriaProperties<'parent> {
             }
         } else if let Some(name) = &self.name {
             write!(result, "name {}", name.describe(MatcherResult::Match)).unwrap(); // Infallible
+        }
+        if let Some(description) = &self.description {
+            write!(
+                result,
+                " having accessible description {}",
+                description.describe(MatcherResult::Match)
+            )
+            .unwrap(); // Infallible
         }
         if let Some(level) = &self.level {
             write!(
@@ -1074,6 +1147,13 @@ impl<'parent> std::fmt::Display for QueryByAriaProperties<'parent> {
             }
         } else if let Some(name) = &self.name {
             write!(f, r#"name {}"#, name.describe(MatcherResult::Match))?;
+        }
+        if let Some(description) = &self.description {
+            write!(
+                f,
+                r#" having description {}"#,
+                description.describe(MatcherResult::Match)
+            )?;
         }
         if let Some(level) = &self.level {
             write!(
@@ -1233,6 +1313,13 @@ mod tests {
     }
 
     #[test]
+    fn by_role_display_format_contains_description() -> TestResult<()> {
+        let query = by_role(Role::Button).having_description(eq("A button"));
+
+        verify_that!(format!("{query}"), contains_substring("A button"))
+    }
+
+    #[test]
     fn failure_message_for_query_by_role_includes_name() -> TestResult<()> {
         #[component]
         fn TestComponent() -> Element {
@@ -1242,6 +1329,21 @@ mod tests {
 
         let result = tester
             .query(by_role(Role::Button).having_name(eq("A button")))
+            .immediately();
+
+        verify_that!(result, err(displays_as(contains_substring("A button"))))
+    }
+
+    #[test]
+    fn failure_message_for_query_by_role_includes_description() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {}
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_role(Role::Button).having_description(eq("A button")))
             .immediately();
 
         verify_that!(result, err(displays_as(contains_substring("A button"))))
@@ -1322,6 +1424,94 @@ mod tests {
         tester
             .query_all(by_role(Role::Button).having_name(eq("A button")))
             .expect(len(eq(1)))
+            .immediately()
+    }
+
+    #[test]
+    fn having_description_gets_description_from_aria_describedby_target() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-describedby": "description", "A button" }
+                span { id: "description", "A description" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button).having_description(eq("A description")))
+            .expect(len(eq(1)))
+            .immediately()
+    }
+
+    #[test]
+    fn having_description_gets_description_from_aria_description() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-description": "A description", "A button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button).having_description(eq("A description")))
+            .expect(len(eq(1)))
+            .immediately()
+    }
+
+    #[test]
+    fn having_description_selects_element_by_its_own_description() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-description": "Wrong description", "First button" }
+                button { "aria-description": "Right description", "Second button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(by_role(Role::Button).having_description(eq("Right description")))
+            .expect(inner_html(eq("Second button")))
+            .immediately()
+    }
+
+    #[test]
+    fn having_description_with_empty_string_does_not_match_undescribed_element() -> crate::Result<()>
+    {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "A button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(by_role(Role::Button).having_description(eq("")))
+            .expect_no_matching_element()
+            .immediately()
+    }
+
+    #[test]
+    fn having_description_combines_with_name() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-description": "Shared description", "First button" }
+                button { "aria-description": "Shared description", "Second button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(
+                by_role(Role::Button)
+                    .having_name(eq("Second button"))
+                    .having_description(eq("Shared description")),
+            )
+            .expect(inner_html(eq("Second button")))
             .immediately()
     }
 
