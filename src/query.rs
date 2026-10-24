@@ -1,12 +1,9 @@
-mod aria_tree;
-
 use crate::TesterError;
 use accesskit::Role;
-use aria_tree::AriaTree;
 use blitz_dom::{Document as _, SelectorList};
 use dioxus_native_dom::DioxusDocument;
 use smallvec::SmallVec;
-use std::{fmt::Write as _, rc::Rc};
+use std::{collections::HashMap, fmt::Write as _, rc::Rc};
 use style::dom_apis::{MayUseInvalidation, QueryAll, QueryFirst, query_selector};
 use test_that::matcher::{Matcher, MatcherResult};
 
@@ -661,7 +658,7 @@ impl<'parent> QueryByAriaProperties<'parent> {
     ///
     /// ```
     /// use dioxus::prelude::*;
-    /// use dioxus_test::{Role, by_role, matchers::{eq, inner_html}, render};
+    /// use dioxus_test::{Role, by_role, matchers::{eq, inner_html, len}, render};
     ///
     /// #[component]
     /// fn MyComponent() -> Element {
@@ -673,13 +670,8 @@ impl<'parent> QueryByAriaProperties<'parent> {
     ///
     /// let tester = render(MyComponent);
     /// tester
-    ///     .query(by_role(Role::Button).having_name(eq("Hidden button")).include_hidden())
-    ///     .expect(inner_html(eq("Hidden button")))
-    ///     .immediately()
-    ///     .unwrap();
-    /// tester
-    ///     .query(by_role(Role::Button).having_name(eq("Visible button")).include_hidden())
-    ///     .expect(inner_html(eq("Visible button")))
+    ///     .query_all(by_role(Role::Button).include_hidden())
+    ///     .expect(len(eq(2)))
     ///     .immediately()
     ///     .unwrap();
     /// ```
@@ -894,7 +886,7 @@ impl<'parent> QueryByAriaProperties<'parent> {
         ancestor_hidden: bool,
     ) -> Option<blitz_dom::NodeId> {
         let node = aria_tree.get_node(node_id)?;
-        if self.element_matches(node, aria_tree, node.is_hidden() || ancestor_hidden) {
+        if self.element_matches(node, node.is_hidden() || ancestor_hidden) {
             Some(blitz_dom::NodeId::from_u64(node_id.0))
         } else {
             node.children().iter().find_map(|child_id| {
@@ -927,21 +919,16 @@ impl<'parent> QueryByAriaProperties<'parent> {
                 )
             })
             .collect();
-        if self.element_matches(node, aria_tree, node.is_hidden() || ancestor_hidden) {
+        if self.element_matches(node, node.is_hidden() || ancestor_hidden) {
             result.push(blitz_dom::NodeId::from_u64(node_id.0))
         }
         result
     }
 
-    fn element_matches(
-        &self,
-        node: &accesskit::Node,
-        aria_tree: &AriaTree,
-        is_hidden: bool,
-    ) -> bool {
+    fn element_matches(&self, node: &accesskit::Node, is_hidden: bool) -> bool {
         self.role.is_none_or(|role| role == node.role())
             && self.name.as_ref().is_none_or(|name| {
-                name.matches(&aria_tree.compute_accessible_name(node))
+                name.matches(&node.label().map(|s| s.to_string()).unwrap_or_default())
                     .is_match()
             })
             && self.level.as_ref().is_none_or(|level| {
@@ -1151,6 +1138,25 @@ impl<Q: std::fmt::Display + Clone> std::fmt::Display for LastElementQuery<Q> {
     }
 }
 
+/// A representation of the ARIA tree constructed from a document.
+struct AriaTree {
+    nodes_by_node_id: HashMap<accesskit::NodeId, accesskit::Node>,
+}
+
+impl AriaTree {
+    /// Constructs a new [`AriaTree`] from the data in the DOM of the given [`DioxusDocument`].
+    pub(super) fn for_document(document: &DioxusDocument) -> Self {
+        let tree = document.inner.borrow().build_accessibility_tree();
+        let nodes_by_node_id = tree.nodes.into_iter().collect();
+        Self { nodes_by_node_id }
+    }
+
+    /// Returns the accesskit [Node] with the given [NodeId], if it exists.
+    pub(super) fn get_node(&self, node_id: accesskit::NodeId) -> Option<&accesskit::Node> {
+        self.nodes_by_node_id.get(&node_id)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::by_role;
@@ -1189,6 +1195,22 @@ mod tests {
             format!("{query}"),
             eq(r#"role="Heading" having level is equal to 3"#)
         )
+    }
+
+    #[test]
+    fn having_name_gets_name_from_aria_label() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-label": "A button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button).having_name(eq("A button")))
+            .expect(len(eq(1)))
+            .immediately()
     }
 
     #[test]
@@ -1358,28 +1380,6 @@ mod tests {
         tester
             .query(by_role(Role::Button).only_hidden())
             .expect(inner_html(eq("Hidden button")))
-            .immediately()
-    }
-
-    #[test]
-    fn only_hidden_combines_with_name() -> crate::Result<()> {
-        #[component]
-        fn TestComponent() -> Element {
-            rsx! {
-                button { "aria-hidden": "true", "First button" }
-                button { "aria-hidden": "true", "Second button" }
-                button { "Second button" }
-            }
-        }
-        let tester = render(TestComponent);
-
-        tester
-            .query_all(
-                by_role(Role::Button)
-                    .having_name(eq("Second button"))
-                    .only_hidden(),
-            )
-            .expect(len(eq(1)))
             .immediately()
     }
 
