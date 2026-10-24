@@ -5,7 +5,10 @@ use dioxus_native_dom::DioxusDocument;
 use smallvec::SmallVec;
 use std::{collections::HashMap, fmt::Write as _, rc::Rc};
 use style::dom_apis::{MayUseInvalidation, QueryAll, QueryFirst, query_selector};
-use test_that::matcher::{Matcher, MatcherResult};
+use test_that::{
+    matcher::{Matcher, MatcherResult},
+    matchers::{none, some},
+};
 
 /// A value which can be turned into a CSS selector to query the DOM.
 ///
@@ -455,19 +458,21 @@ pub fn by_role(role: Role) -> QueryByAriaProperties<'static> {
 /// # }
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
 /// ```
-pub fn by_name(label: impl Matcher<String> + 'static) -> QueryByAriaProperties<'static> {
+pub fn by_name(label: impl for<'a> Matcher<&'a str> + 'static) -> QueryByAriaProperties<'static> {
     QueryByAriaProperties {
-        name: Some(Rc::new(label)),
+        name: Some(Rc::new(some(label))),
         hidden: Some(false),
         ..Default::default()
     }
 }
 
+type OptionStringSliceMatcher = dyn for<'a> Matcher<Option<&'a str>>;
+
 /// A query matching elements based on their [ARIA](https://www.w3.org/TR/wai-aria-1.2/) properties.
 #[derive(Clone, Default)]
 pub struct QueryByAriaProperties<'parent> {
     role: Option<Role>,
-    name: Option<Rc<dyn Matcher<String>>>,
+    name: Option<Rc<OptionStringSliceMatcher>>,
     level: Option<Rc<dyn Matcher<usize>>>,
     hidden: Option<bool>,
     expanded: Option<bool>,
@@ -477,7 +482,7 @@ pub struct QueryByAriaProperties<'parent> {
 }
 
 impl<'parent> QueryByAriaProperties<'parent> {
-    /// Restricts this query to elements having the an accessible name matched by the given matcher.
+    /// Restricts this query to elements having an accessible name matched by the given matcher.
     ///
     /// See [W3C documentation](https://w3c.github.io/accname/#dfn-accessible-name) for information
     /// on the accessible name of an element.
@@ -527,9 +532,46 @@ impl<'parent> QueryByAriaProperties<'parent> {
     /// ```
     ///
     /// See [`by_name`] for more information about the matchers one can use with this method.
-    pub fn having_name(self, name: impl Matcher<String> + 'static) -> Self {
+    ///
+    /// Hidden elements cannot be matched by name, since the accessible name of a hidden element is
+    /// empty, as per the [W3C spec](https://www.w3.org/TR/accname-1.1/#step2A).
+    pub fn having_name(self, name: impl for<'a> Matcher<&'a str> + 'static) -> Self {
         Self {
-            name: Some(Rc::new(name)),
+            name: Some(Rc::new(some(name))),
+            ..self
+        }
+    }
+
+    /// Restricts this query to elements having no accessible name as defined by the
+    /// [W3C specification](https://w3c.github.io/accname/#dfn-accessible-name).
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html, len}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         button {}
+    ///         button {
+    ///              "This button has an accessible name"
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # async fn test_fn() {
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query_all(by_role(Role::Button).having_no_name())
+    ///     .expect(len(eq(1)))
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+    /// ```
+    pub fn having_no_name(self) -> Self {
+        Self {
+            name: Some(Rc::new(none())),
             ..self
         }
     }
@@ -629,11 +671,6 @@ impl<'parent> QueryByAriaProperties<'parent> {
     ///     .expect(inner_html(eq("Hidden button")))
     ///     .immediately()
     ///     .unwrap();
-    /// tester
-    ///     .query(by_role(Role::Button).having_name(eq("Visible button")).only_hidden())
-    ///     .expect_no_matching_element()
-    ///     .immediately()
-    ///     .unwrap();
     /// ```
     ///
     /// An element with `aria-hidden="false"` is not hidden. Elements hidden through CSS, such as
@@ -679,6 +716,29 @@ impl<'parent> QueryByAriaProperties<'parent> {
     /// An element with `aria-hidden="false"` is not hidden. Elements hidden through CSS, such as
     /// with `display: none` or `visibility: hidden`, are not part of the accessibility tree at all,
     /// so no query by role matches them, whatever value is given here.
+    ///
+    /// Hidden elements cannot be matched by name, since the accessible name of a hidden element is
+    /// empty, as per the [W3C spec](https://www.w3.org/TR/accname-1.1/#step2A).
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, matchers::{eq, inner_html, len}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         // This element has an empty accessible name
+    ///         button { "aria-hidden": "true", "Hidden button" }
+    ///     }
+    /// }
+    ///
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::Button).having_name(eq("Hidden button")).include_hidden())
+    ///     .expect_no_matching_element()
+    ///     .immediately()
+    ///     .unwrap();
+    /// ```
     ///
     /// Child elements of an element with `aria-hidden="true"` are also hidden.
     pub fn include_hidden(self) -> Self {
@@ -928,7 +988,7 @@ impl<'parent> QueryByAriaProperties<'parent> {
     fn element_matches(&self, node: &accesskit::Node, is_hidden: bool) -> bool {
         self.role.is_none_or(|role| role == node.role())
             && self.name.as_ref().is_none_or(|name| {
-                name.matches(&node.label().map(|s| s.to_string()).unwrap_or_default())
+                name.matches(&if is_hidden { None } else { node.label() })
                     .is_match()
             })
             && self.level.as_ref().is_none_or(|level| {
@@ -1198,6 +1258,58 @@ mod tests {
     }
 
     #[test]
+    fn having_name_with_empty_string_does_not_match_unnamed_element() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button {}
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(by_role(Role::Button).having_name(eq("")))
+            .expect_no_matching_element()
+            .immediately()
+    }
+
+    #[test]
+    fn having_name_with_only_hidden_matches_no_elements() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-hidden": true, "A button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(
+                by_role(Role::Button)
+                    .only_hidden()
+                    .having_name(eq("A button")),
+            )
+            .expect_no_matching_element()
+            .immediately()
+    }
+
+    #[test]
+    fn having_no_name_does_not_match_named_element() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "A button" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(by_role(Role::Button).having_no_name())
+            .expect_no_matching_element()
+            .immediately()
+    }
+
+    #[test]
     fn having_name_gets_name_from_aria_label() -> crate::Result<()> {
         #[component]
         fn TestComponent() -> Element {
@@ -1441,6 +1553,71 @@ mod tests {
         tester
             .query(by_role(Role::Button).only_hidden())
             .expect(inner_html(eq("Button inside hidden element")))
+            .immediately()
+    }
+
+    #[test]
+    fn hidden_elements_have_no_accessible_name_whatever_its_source() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "Visible button" }
+                button { "aria-hidden": "true", "Hidden by own attribute" }
+                button { "aria-hidden": "true", "aria-label": "Hidden with aria-label", "x" }
+                div {
+                    "aria-hidden": "true",
+                    button { "Hidden by ancestor" }
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button).only_hidden().having_no_name())
+            .expect(len(eq(3)))
+            .immediately()
+    }
+
+    #[test]
+    fn having_name_does_not_match_hidden_element_with_aria_label() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "aria-hidden": "true", "aria-label": "Hidden with aria-label", "x" }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(
+                by_role(Role::Button)
+                    .having_name(eq("Hidden with aria-label"))
+                    .include_hidden(),
+            )
+            .expect_no_matching_element()
+            .immediately()
+    }
+
+    #[test]
+    fn having_name_does_not_match_element_hidden_by_ancestor() -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div {
+                    "aria-hidden": "true",
+                    button { "Hidden by ancestor" }
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(
+                by_role(Role::Button)
+                    .having_name(eq("Hidden by ancestor"))
+                    .include_hidden(),
+            )
+            .expect_no_matching_element()
             .immediately()
     }
 
@@ -1877,7 +2054,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                r#"No such element with name is equal to "A button""#
+                r#"No such element with name has a value which is equal to "A button""#
             )))
         )
     }
@@ -1902,7 +2079,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                r#"Unexpected element with name is equal to "A button""#
+                r#"Unexpected element with name has a value which is equal to "A button""#
             )))
         )
     }
@@ -1911,6 +2088,9 @@ mod tests {
     fn by_name_display_format_contains_name() -> TestResult<()> {
         let query = by_name(eq("A button"));
 
-        verify_that!(format!("{query}"), eq(r#"name is equal to "A button""#))
+        verify_that!(
+            format!("{query}"),
+            contains_substring(r#"is equal to "A button""#)
+        )
     }
 }
