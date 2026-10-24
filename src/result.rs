@@ -14,11 +14,21 @@ pub enum TesterError {
     /// DOM.
     NoSuchElementWithTestId(String, String),
 
+    /// An element with the test ID, as given by the HTML attribute `data-testid`, was found in the
+    /// DOM even though none was expected.
+    UnexpectedElementWithTestId(String, String),
+
     /// No element with the given role was found in the DOM.
     NoSuchElementWithRole(String, String),
 
+    /// An element with the given role was found in the DOM even though none was expected.
+    UnexpectedElementWithRole(String, String),
+
     /// No element matching the given CSS selector was found in the DOM.
     NoSuchElementWithCssSelector(String, String),
+
+    /// An element has the given CSS selector even though none was expected.
+    UnexpectedElementWithCssSelector(String, String),
 
     /// Attempt to interact (e.g., click) with a non-interactive element.
     InteractionWithNonInteractiveElement(String, String),
@@ -41,13 +51,25 @@ impl std::fmt::Display for TesterError {
             TesterError::NoSuchElementWithTestId(id, dom) => {
                 write!(f, "No such element with test ID `{id}`\nDOM is:\n{dom}")
             }
+            TesterError::UnexpectedElementWithTestId(id, dom) => {
+                write!(f, "Unexpected element with test ID `{id}`\nDOM is:\n{dom}")
+            }
             TesterError::NoSuchElementWithRole(role, dom) => {
                 write!(f, "No such element with role {role}\nDOM is:\n{dom}")
+            }
+            TesterError::UnexpectedElementWithRole(role, dom) => {
+                write!(f, "Unexpected element with role {role}\nDOM is:\n{dom}")
             }
             TesterError::NoSuchElementWithCssSelector(selector, dom) => {
                 write!(
                     f,
                     "No such element with CSS selector `{selector}`\nDOM is:\n{dom}"
+                )
+            }
+            TesterError::UnexpectedElementWithCssSelector(selector, dom) => {
+                write!(
+                    f,
+                    "Unexpected element with CSS selector `{selector}`\nDOM is:\n{dom}"
                 )
             }
             TesterError::InteractionWithNonInteractiveElement(event, rendered) => {
