@@ -639,10 +639,11 @@ impl<'parent> QueryByAriaProperties<'parent> {
     ///     .unwrap();
     /// ```
     ///
-    /// Only the element carrying `aria-hidden="true"` itself counts as hidden, not its
-    /// descendants. An element with `aria-hidden="false"` is not hidden. Elements hidden through
-    /// CSS, such as with `display: none` or `visibility: hidden`, are not part of the
-    /// accessibility tree at all, so no query by role matches them, whatever value is given here.
+    /// An element with `aria-hidden="false"` is not hidden. Elements hidden through CSS, such as
+    /// with `display: none` or `visibility: hidden`, are not part of the accessibility tree at all,
+    /// so no query by role matches them, whatever value is given here.
+    ///
+    /// Child elements of an element with `aria-hidden="true"` are also hidden.
     pub fn only_hidden(self) -> Self {
         Self {
             hidden: Some(true),
@@ -683,10 +684,11 @@ impl<'parent> QueryByAriaProperties<'parent> {
     ///     .unwrap();
     /// ```
     ///
-    /// Only the element carrying `aria-hidden="true"` itself counts as hidden, not its
-    /// descendants. An element with `aria-hidden="false"` is not hidden. Elements hidden through
-    /// CSS, such as with `display: none` or `visibility: hidden`, are not part of the
-    /// accessibility tree at all, so no query by role matches them, whatever value is given here.
+    /// An element with `aria-hidden="false"` is not hidden. Elements hidden through CSS, such as
+    /// with `display: none` or `visibility: hidden`, are not part of the accessibility tree at all,
+    /// so no query by role matches them, whatever value is given here.
+    ///
+    /// Child elements of an element with `aria-hidden="true"` are also hidden.
     pub fn include_hidden(self) -> Self {
         Self {
             hidden: None,
@@ -829,6 +831,7 @@ impl<'parent> Query for QueryByAriaProperties<'parent> {
         self.find_first_element_starting_at(
             accesskit::NodeId(starting_node_id.as_u64()),
             &aria_tree,
+            false,
         )
     }
 
@@ -837,7 +840,11 @@ impl<'parent> Query for QueryByAriaProperties<'parent> {
         let Some(starting_node_id) = self.get_starting_node_id(document) else {
             return vec![];
         };
-        self.find_all_elements_starting_at(accesskit::NodeId(starting_node_id.as_u64()), &aria_tree)
+        self.find_all_elements_starting_at(
+            accesskit::NodeId(starting_node_id.as_u64()),
+            &aria_tree,
+            false,
+        )
     }
 
     fn render_parent_dom(&self, document: &DioxusDocument) -> String {
@@ -884,14 +891,19 @@ impl<'parent> QueryByAriaProperties<'parent> {
         &self,
         node_id: accesskit::NodeId,
         aria_tree: &AriaTree,
+        ancestor_hidden: bool,
     ) -> Option<blitz_dom::NodeId> {
         let node = aria_tree.get_node(node_id)?;
-        if self.element_matches(node, aria_tree) {
+        if self.element_matches(node, aria_tree, node.is_hidden() || ancestor_hidden) {
             Some(blitz_dom::NodeId::from_u64(node_id.0))
         } else {
-            node.children()
-                .iter()
-                .find_map(|child_id| self.find_first_element_starting_at(*child_id, aria_tree))
+            node.children().iter().find_map(|child_id| {
+                self.find_first_element_starting_at(
+                    *child_id,
+                    aria_tree,
+                    ancestor_hidden || node.is_hidden(),
+                )
+            })
         }
     }
 
@@ -899,6 +911,7 @@ impl<'parent> QueryByAriaProperties<'parent> {
         &self,
         node_id: accesskit::NodeId,
         aria_tree: &AriaTree,
+        ancestor_hidden: bool,
     ) -> Vec<blitz_dom::NodeId> {
         let Some(node) = aria_tree.get_node(node_id) else {
             return vec![];
@@ -906,15 +919,26 @@ impl<'parent> QueryByAriaProperties<'parent> {
         let mut result: Vec<_> = node
             .children()
             .iter()
-            .flat_map(|child_id| self.find_all_elements_starting_at(*child_id, aria_tree))
+            .flat_map(|child_id| {
+                self.find_all_elements_starting_at(
+                    *child_id,
+                    aria_tree,
+                    ancestor_hidden || node.is_hidden(),
+                )
+            })
             .collect();
-        if self.element_matches(node, aria_tree) {
+        if self.element_matches(node, aria_tree, node.is_hidden() || ancestor_hidden) {
             result.push(blitz_dom::NodeId::from_u64(node_id.0))
         }
         result
     }
 
-    fn element_matches(&self, node: &accesskit::Node, aria_tree: &AriaTree) -> bool {
+    fn element_matches(
+        &self,
+        node: &accesskit::Node,
+        aria_tree: &AriaTree,
+        is_hidden: bool,
+    ) -> bool {
         self.role.is_none_or(|role| role == node.role())
             && self.name.as_ref().is_none_or(|name| {
                 name.matches(&aria_tree.compute_accessible_name(node))
@@ -926,7 +950,7 @@ impl<'parent> QueryByAriaProperties<'parent> {
                 node.level()
                     .is_some_and(|actual| level.matches(&(actual + 1)).is_match())
             })
-            && self.hidden.is_none_or(|hidden| node.is_hidden() == hidden)
+            && self.hidden.is_none_or(|hidden| is_hidden == hidden)
             && self
                 .expanded
                 .is_none_or(|expanded| node.is_expanded() == Some(expanded))
@@ -1375,6 +1399,48 @@ mod tests {
         tester
             .query_all(by_role(Role::Button).include_hidden())
             .expect(len(eq(3)))
+            .immediately()
+    }
+
+    #[test]
+    fn by_role_does_not_match_descendant_of_element_with_aria_hidden_true_by_default()
+    -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "Visible button" }
+                div {
+                    "aria-hidden": "true",
+                    button { "Button inside hidden element" }
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query_all(by_role(Role::Button))
+            .expect(len(eq(1)))
+            .immediately()
+    }
+
+    #[test]
+    fn by_role_matches_descendant_of_element_with_aria_hidden_true_when_only_hidden_called()
+    -> crate::Result<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                button { "Visible button" }
+                div {
+                    "aria-hidden": "true",
+                    button { "Button inside hidden element" }
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        tester
+            .query(by_role(Role::Button).only_hidden())
+            .expect(inner_html(eq("Button inside hidden element")))
             .immediately()
     }
 
