@@ -11,18 +11,22 @@ keywords = ["dom", "ui", "gui", "react", "testing"]
 
 [dependencies]
 accesskit = "0.25"
-blitz-dom = { version = "=0.3.0-beta.4", default-features = false }
-blitz-traits = { version = "=0.3.0-beta.4", default-features = false }
-dioxus-core = "=0.8.0-alpha.3"
-dioxus-html = "=0.8.0-alpha.3"
-dioxus-native-dom = "=0.8.0-alpha.3"
+blitz-dom = { git = "https://github.com/hovinen/blitz", branch = "support-html-label-for-accessible-name", default-features = false }
+blitz-traits = { git = "https://github.com/hovinen/blitz", branch = "support-html-label-for-accessible-name", default-features = false }
+dioxus-core = { git = "https://github.com/DioxusLabs/dioxus" }
+dioxus-html = { git = "https://github.com/DioxusLabs/dioxus" }
+dioxus-native-dom = { git = "https://github.com/DioxusLabs/dioxus" }
 smallvec = "1.15.2"
-stylo = { version = "0.22.0" }
+style = { version = "0.22.0", git = "https://github.com/DioxusLabs/stylo", rev = "d6502e0002e9c40c43a0a4776f9e7eb93be360e3", package = "stylo" }
 test-that = { version = "0.6.0", default-features = false, features = ["regex", "num-traits"] }
 tokio = { version = "1.48", features = ["time"] }
 tracing = { version = "0.1.41" }
 
+[patch.crates-io]
+blitz-dom = { git = "https://github.com/hovinen/blitz", branch = "support-html-label-for-accessible-name" }
+blitz-traits = { git = "https://github.com/hovinen/blitz", branch = "support-html-label-for-accessible-name" }
+
 [dev-dependencies]
-dioxus = "=0.8.0-alpha.3"
+dioxus= { git = "https://github.com/DioxusLabs/dioxus" }
 indoc = "2.0.7"
 tokio = { version = "1.48", features = ["rt", "macros"] }
