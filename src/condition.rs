@@ -1303,3 +1303,128 @@ impl<'vdom, Q: Query + Clone + 'vdom> IntoFuture for NoMatchingElementCondition<
         Box::pin(async move { self.to_waitable_future().await })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        by_role,
+        matchers::{eq, inner_html},
+        render,
+    };
+    use accesskit::Role;
+    use dioxus::prelude::*;
+    use test_that::prelude::*;
+
+    #[test]
+    fn shows_correct_failure_message_when_nth_element_does_not_match() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div {
+                    "First"
+                }
+                div {
+                    "Second"
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query_all(by_role(Role::GenericContainer))
+            .nth(1)
+            .expect(inner_html(eq("Third")))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                r#"role="GenericContainer"; requested element #1"#
+            )))
+        )
+    }
+
+    #[test]
+    fn shows_correct_failure_message_when_nth_element_does_not_exist() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div {
+                    "First"
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query_all(by_role(Role::GenericContainer))
+            .nth(1)
+            .expect(inner_html(eq("Third")))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                r#"Not enough elements matching role="GenericContainer"; requested element #1, found 1"#
+            )))
+        )
+    }
+
+    #[test]
+    fn shows_correct_failure_message_when_nth_element_unexpectedly_exists() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div {
+                    "First"
+                }
+                div {
+                    "Second"
+                }
+                div {
+                    "Third"
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query_all(by_role(Role::GenericContainer))
+            .nth(2)
+            .expect_no_matching_element()
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                r#"Unexpected element matching role="GenericContainer"; asserted element #2 does not exist, found 3"#
+            )))
+        )
+    }
+
+    #[test]
+    fn shows_correct_failure_message_when_last_element_does_not_exist() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div {
+                    "First"
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query_all(by_role(Role::Button))
+            .last()
+            .expect(inner_html(eq("Third")))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                r#"No such element with role="Button""#
+            )))
+        )
+    }
+}

@@ -30,6 +30,13 @@ pub enum TesterError {
     /// An element has the given CSS selector even though none was expected.
     UnexpectedElementWithCssSelector(String, String),
 
+    /// An nth query was made with a value of n larger than the total number of matching elements.
+    NotEnoughMatchingElements(String, usize, String),
+
+    /// An nth query was made with a value of n smaller than the total number of matching elements,
+    /// but it was not expected that an element should match.
+    TooManyMatchingElements(String, usize, String),
+
     /// Attempt to interact (e.g., click) with a non-interactive element.
     InteractionWithNonInteractiveElement(String, String),
 
@@ -70,6 +77,18 @@ impl std::fmt::Display for TesterError {
                 write!(
                     f,
                     "Unexpected element with CSS selector `{selector}`\nDOM is:\n{dom}"
+                )
+            }
+            TesterError::NotEnoughMatchingElements(query, found, dom) => {
+                write!(
+                    f,
+                    "Not enough elements matching {query}, found {found}\nDOM is:\n{dom}"
+                )
+            }
+            TesterError::TooManyMatchingElements(query, found, dom) => {
+                write!(
+                    f,
+                    "Unexpected element matching {query}, found {found}\nDOM is:\n{dom}"
                 )
             }
             TesterError::InteractionWithNonInteractiveElement(event, rendered) => {
