@@ -420,6 +420,87 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
         }
     }
 
+    /// Asserts that no element in the DOM matches the given query.
+    ///
+    /// One can make the assertion immediately:
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{matchers::{eq, inner_html}, render, Result};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         div {
+    ///              class: "test-component",
+    ///              "Hello, world!"
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[test]
+    /// # */
+    /// fn should_pass() -> Result<()> {
+    ///     let tester = render(MyComponent);
+    ///     tester
+    ///         .query(".nonexistent-component")
+    ///         .expect_no_matching_element() // No such element exists, so passes
+    ///         .immediately()
+    /// }
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[test]
+    /// # */
+    /// fn should_fail() -> Result<()> {
+    ///     let tester = render(MyComponent);
+    ///     tester
+    ///         .query(".test-component")
+    ///         .expect_no_matching_element() // Fails because there exists such an element
+    ///         .immediately()
+    /// }
+    /// # should_pass().unwrap();
+    /// # should_fail().unwrap_err();
+    /// ```
+    ///
+    /// On can also wait for the assertion with `await`:
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{matchers::{eq, inner_html}, render, Result};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         div {
+    ///              class: "test-component",
+    ///              "Hello, world!"
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[tokio::test]
+    /// # */
+    /// async fn should_pass() -> Result<()> {
+    ///     let tester = render(MyComponent);
+    ///     tester
+    ///         .query(".nonexistent-component")
+    ///         .expect_no_matching_element() // No such element exists, so passes
+    ///         .await
+    /// }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(should_pass()).unwrap();
+    /// ```
+    ///
+    /// > Warning! The same warning applies as with [`expect`][Self::expect]: the assertion passes
+    /// > as soon as _no_ matching element is found in the DOM, even if that is a temporary
+    /// > condition which will change later.
+    pub fn expect_no_matching_element(&self) -> NoMatchingElementCondition<'vdom, Q> {
+        NoMatchingElementCondition {
+            element: self.clone(),
+            phantom: Default::default(),
+        }
+    }
+
     /// Resolves the element represented by this instance without running the event loop.
     ///
     /// This can be used to obtain a [ResolvedElement] on which the test can operate when one knows
@@ -546,6 +627,11 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
             data: self.data,
             query,
         }
+    }
+
+    fn describe_unexpected_element(&self) -> TesterError {
+        self.query
+            .describe_unexpected_element(&self.data.document())
     }
 }
 
@@ -1025,4 +1111,57 @@ pub trait Matchable<M> {
     fn matches(&self, matcher: &M) -> ControlFlow<()>;
 
     fn explain_match_failure(&self, matcher: &M) -> TesterError;
+}
+
+/// A representation of an assertion that no element exists in the DOM matching the given
+/// [ElementCondition].
+///
+/// This will drive the event loop up to [MAX_TRIES] to await the disappearance of the element. If
+/// the element is still matched after that, the attempt to await the condition returns an error.
+pub struct NoMatchingElementCondition<'vdom, Q> {
+    element: ElementCondition<'vdom, Q>,
+    phantom: PhantomData<&'vdom ()>,
+}
+
+impl<'vdom, Q: Query + Clone> NoMatchingElementCondition<'vdom, Q> {
+    /// Results this condition without running the event loop.
+    ///
+    /// This returns `Result::Ok` if no matching element is found in the DOM in its current state,
+    /// `Result::Err` if a matching element is present.
+    pub fn immediately(&'vdom self) -> Result<(), TesterError> {
+        match self.element.check() {
+            ControlFlow::Continue(_) => Ok(()),
+            ControlFlow::Break(_) => Err(self.describe_failure()),
+        }
+    }
+}
+
+impl<'vdom, Q: Query> EventLoopDriver for NoMatchingElementCondition<'vdom, Q> {
+    async fn pump(&mut self) {
+        self.element.pump().await;
+    }
+}
+
+impl<'vdom, Q: Query + Clone> Waitable for NoMatchingElementCondition<'vdom, Q> {
+    type Output = ();
+
+    fn check(&self) -> ControlFlow<Self::Output> {
+        match self.element.check() {
+            ControlFlow::Continue(_) => ControlFlow::Break(()),
+            ControlFlow::Break(_) => ControlFlow::Continue(()),
+        }
+    }
+
+    fn describe_failure(&self) -> TesterError {
+        self.element.describe_unexpected_element()
+    }
+}
+
+impl<'vdom, Q: Query + Clone + 'vdom> IntoFuture for NoMatchingElementCondition<'vdom, Q> {
+    type Output = Result<(), TesterError>;
+    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + 'vdom>>;
+
+    fn into_future(mut self) -> Self::IntoFuture {
+        Box::pin(async move { self.to_waitable_future().await })
+    }
 }

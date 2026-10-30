@@ -24,6 +24,10 @@ pub trait Query: ToString {
     /// Constructs a [TesterError] representing this query failing to match an element.
     fn describe_failure(&self, document: &DioxusDocument) -> TesterError;
 
+    /// Constructs a [TesterError] representing this query unexpectedly matching an element which
+    /// is not supposed to exist.
+    fn describe_unexpected_element(&self, document: &DioxusDocument) -> TesterError;
+
     /// Renders the DOM surrounding this query as a pretty-printed string.
     ///
     /// If the query has no parent, this renders the entire DOM of the document. If it has a parent,
@@ -97,6 +101,19 @@ impl<'parent, T: AsRef<str> + std::fmt::Display + Clone> Query for CssSelectorQu
             parent.describe_failure(document)
         } else {
             TesterError::NoSuchElementWithCssSelector(
+                self.0.as_ref().into(),
+                self.render_parent_dom(document),
+            )
+        }
+    }
+
+    fn describe_unexpected_element(&self, document: &DioxusDocument) -> TesterError {
+        if let Some(parent) = self.1
+            && parent.get_first_element(document).is_none()
+        {
+            parent.describe_unexpected_element(document)
+        } else {
+            TesterError::UnexpectedElementWithCssSelector(
                 self.0.as_ref().into(),
                 self.render_parent_dom(document),
             )
@@ -184,6 +201,19 @@ impl<'parent> Query for QueryByTestId<'parent> {
             parent.describe_failure(document)
         } else {
             TesterError::NoSuchElementWithTestId(self.0.clone(), self.render_parent_dom(document))
+        }
+    }
+
+    fn describe_unexpected_element(&self, document: &DioxusDocument) -> TesterError {
+        if let Some(parent) = self.1
+            && parent.get_first_element(document).is_none()
+        {
+            parent.describe_unexpected_element(document)
+        } else {
+            TesterError::UnexpectedElementWithTestId(
+                self.0.clone(),
+                self.render_parent_dom(document),
+            )
         }
     }
 }
@@ -414,6 +444,24 @@ impl<'parent> Query for QueryByRole<'parent> {
                 String::new()
             };
             TesterError::NoSuchElementWithRole(
+                format!("{:?}{extra}", self.role),
+                self.render_parent_dom(document),
+            )
+        }
+    }
+
+    fn describe_unexpected_element(&self, document: &DioxusDocument) -> TesterError {
+        if let Some(parent) = self.parent
+            && parent.get_first_element(document).is_none()
+        {
+            parent.describe_unexpected_element(document)
+        } else {
+            let extra = if let Some(name) = &self.name {
+                format!(" having accessible name `{name}`")
+            } else {
+                String::new()
+            };
+            TesterError::UnexpectedElementWithRole(
                 format!("{:?}{extra}", self.role),
                 self.render_parent_dom(document),
             )
