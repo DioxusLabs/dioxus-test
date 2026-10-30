@@ -6,7 +6,7 @@ use aria_tree::AriaTree;
 use blitz_dom::{Document as _, SelectorList};
 use dioxus_native_dom::DioxusDocument;
 use smallvec::SmallVec;
-use std::{fmt::Write as _, rc::Rc};
+use std::rc::Rc;
 use style::dom_apis::{MayUseInvalidation, QueryAll, QueryFirst, query_selector};
 use test_that::matcher::{Matcher, MatcherResult};
 
@@ -939,49 +939,37 @@ impl<'parent> QueryByAriaProperties<'parent> {
     }
 
     fn describe_self(&self) -> String {
-        let mut result = String::new();
+        let mut components = Vec::new();
         if let Some(role) = self.role {
-            write!(result, "role {role:?}").unwrap(); // Infallible
-            if let Some(name) = &self.name {
-                write!(
-                    result,
-                    " having accessible name {}",
-                    name.describe(MatcherResult::Match)
-                )
-                .unwrap(); // Infallible
-            }
-        } else if let Some(name) = &self.name {
-            write!(result, "name {}", name.describe(MatcherResult::Match)).unwrap(); // Infallible
+            components.push(format!(r#"role="{role:?}""#));
+        }
+        if let Some(name) = &self.name {
+            components.push(format!("name {}", name.describe(MatcherResult::Match)));
         }
         if let Some(level) = &self.level {
-            write!(
-                result,
-                " having ARIA level {}",
-                level.describe(MatcherResult::Match)
-            )
-            .unwrap(); // Infallible
+            components.push(format!("level {}", level.describe(MatcherResult::Match)));
         }
         match self.hidden {
-            Some(true) => result.push_str(" only hidden"),
+            Some(true) => components.push("only hidden".to_string()),
             Some(false) => {}
-            None => result.push_str(" including hidden"),
+            None => components.push("including hidden".to_string()),
         }
         match self.expanded {
-            Some(true) => result.push_str(" being expanded"),
-            Some(false) => result.push_str(" being collapsed"),
+            Some(true) => components.push("expanded".to_string()),
+            Some(false) => components.push("collapsed".to_string()),
             None => {}
         }
         match self.disabled {
-            Some(true) => result.push_str(" being disabled"),
-            Some(false) => result.push_str(" not being disabled"),
+            Some(true) => components.push("disabled".to_string()),
+            Some(false) => components.push("not disabled".to_string()),
             None => {}
         }
         match self.selected {
-            Some(true) => result.push_str(" being selected"),
-            Some(false) => result.push_str(" being unselected"),
+            Some(true) => components.push("selected".to_string()),
+            Some(false) => components.push("unselected".to_string()),
             None => {}
         }
-        result
+        components.join(", ")
     }
 }
 
@@ -996,42 +984,7 @@ impl<'parent> ParentableQuery for QueryByAriaProperties<'parent> {
 
 impl<'parent> std::fmt::Display for QueryByAriaProperties<'parent> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(role) = self.role {
-            write!(f, r#"role="{role:?}""#)?;
-            if let Some(name) = &self.name {
-                write!(f, r#" having name {}"#, name.describe(MatcherResult::Match))?;
-            }
-        } else if let Some(name) = &self.name {
-            write!(f, r#"name {}"#, name.describe(MatcherResult::Match))?;
-        }
-        if let Some(level) = &self.level {
-            write!(
-                f,
-                r#" having level {}"#,
-                level.describe(MatcherResult::Match)
-            )?;
-        }
-        match self.hidden {
-            Some(true) => write!(f, " only hidden")?,
-            Some(false) => {}
-            None => write!(f, " including hidden")?,
-        }
-        match self.expanded {
-            Some(true) => write!(f, " being expanded")?,
-            Some(false) => write!(f, " being collapsed")?,
-            None => {}
-        }
-        match self.disabled {
-            Some(true) => write!(f, " being disabled")?,
-            Some(false) => write!(f, " not being disabled")?,
-            None => {}
-        }
-        match self.selected {
-            Some(true) => write!(f, " being selected")?,
-            Some(false) => write!(f, " being unselected")?,
-            None => {}
-        }
-        Ok(())
+        write!(f, "{}", self.describe_self())
     }
 }
 
@@ -1040,6 +993,111 @@ impl<'parent> IntoQuery for QueryByAriaProperties<'parent> {
 
     fn into_query(self) -> Self::Query {
         self
+    }
+}
+
+#[derive(Clone)]
+#[doc(hidden)]
+pub struct NthElementQuery<Q: Clone> {
+    full_query: Q,
+    n: usize,
+}
+
+impl<Q: Clone> NthElementQuery<Q> {
+    pub(crate) fn new(full_query: Q, n: usize) -> Self {
+        Self { full_query, n }
+    }
+}
+
+impl<Q: Query + Clone + std::fmt::Display> Query for NthElementQuery<Q> {
+    fn get_first_element(&self, document: &DioxusDocument) -> Option<blitz_dom::NodeId> {
+        self.full_query
+            .get_all_elements(document)
+            .get(self.n)
+            .cloned()
+    }
+
+    fn get_all_elements(&self, _: &DioxusDocument) -> Vec<blitz_dom::NodeId> {
+        unimplemented!("This query type is only for single-element queries")
+    }
+
+    fn describe_failure(&self, document: &DioxusDocument) -> TesterError {
+        let found = self.full_query.get_all_elements(document).len();
+        if found <= self.n {
+            TesterError::NotEnoughMatchingElements(
+                self.to_string(),
+                found,
+                self.render_parent_dom(document),
+            )
+        } else {
+            self.full_query.describe_failure(document)
+        }
+    }
+
+    fn describe_unexpected_element(&self, document: &DioxusDocument) -> TesterError {
+        let found = self.full_query.get_all_elements(document).len();
+        if found > self.n {
+            TesterError::TooManyMatchingElements(
+                format!(
+                    "{}; asserted element #{} does not exist",
+                    self.full_query, self.n
+                ),
+                found,
+                self.render_parent_dom(document),
+            )
+        } else {
+            self.full_query.describe_unexpected_element(document)
+        }
+    }
+
+    fn render_parent_dom(&self, document: &DioxusDocument) -> String {
+        self.full_query.render_parent_dom(document)
+    }
+}
+
+impl<Q: std::fmt::Display + Clone> std::fmt::Display for NthElementQuery<Q> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}; requested element #{}", self.full_query, self.n)
+    }
+}
+
+#[derive(Clone)]
+#[doc(hidden)]
+pub struct LastElementQuery<Q: Clone> {
+    full_query: Q,
+}
+
+impl<Q: Clone> LastElementQuery<Q> {
+    pub(crate) fn new(full_query: Q) -> Self {
+        Self { full_query }
+    }
+}
+
+impl<Q: Query + Clone + std::fmt::Display> Query for LastElementQuery<Q> {
+    fn get_first_element(&self, document: &DioxusDocument) -> Option<blitz_dom::NodeId> {
+        self.full_query.get_all_elements(document).last().cloned()
+    }
+
+    fn get_all_elements(&self, _: &DioxusDocument) -> Vec<blitz_dom::NodeId> {
+        unimplemented!("This query type is only for single-element queries")
+    }
+
+    fn describe_failure(&self, document: &DioxusDocument) -> TesterError {
+        self.full_query.describe_failure(document)
+    }
+
+    fn describe_unexpected_element(&self, document: &DioxusDocument) -> TesterError {
+        self.full_query.describe_unexpected_element(document)
+    }
+
+    fn render_parent_dom(&self, document: &DioxusDocument) -> String {
+        self.full_query.render_parent_dom(document)
+    }
+}
+
+impl<Q: std::fmt::Display + Clone> std::fmt::Display for LastElementQuery<Q> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} (last element)", self.full_query)
     }
 }
 
@@ -1079,7 +1137,7 @@ mod tests {
 
         verify_that!(
             format!("{query}"),
-            eq(r#"role="Heading" having level is equal to 3"#)
+            eq(r#"role="Heading", level is equal to 3"#)
         )
     }
 
@@ -1098,7 +1156,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                "No such element with role Heading having ARIA level is equal to 3"
+                r#"No such element with role="Heading", level is equal to 3"#
             )))
         )
     }
@@ -1178,14 +1236,14 @@ mod tests {
     fn by_role_display_format_contains_only_hidden() -> TestResult<()> {
         let query = by_role(Role::Button).only_hidden();
 
-        verify_that!(format!("{query}"), eq(r#"role="Button" only hidden"#))
+        verify_that!(format!("{query}"), eq(r#"role="Button", only hidden"#))
     }
 
     #[test]
     fn by_role_display_format_contains_include_hidden() -> TestResult<()> {
         let query = by_role(Role::Button).include_hidden();
 
-        verify_that!(format!("{query}"), eq(r#"role="Button" including hidden"#))
+        verify_that!(format!("{query}"), eq(r#"role="Button", including hidden"#))
     }
 
     #[test]
@@ -1205,7 +1263,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                "No such element with role Button only hidden"
+                r#"No such element with role="Button", only hidden"#
             )))
         )
     }
@@ -1225,7 +1283,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                "No such element with role Button including hidden"
+                r#"No such element with role="Button", including hidden"#
             )))
         )
     }
@@ -1298,14 +1356,14 @@ mod tests {
     fn by_role_display_format_contains_expanded_true() -> TestResult<()> {
         let query = by_role(Role::Button).expanded(true);
 
-        verify_that!(format!("{query}"), eq(r#"role="Button" being expanded"#))
+        verify_that!(format!("{query}"), eq(r#"role="Button", expanded"#))
     }
 
     #[test]
     fn by_role_display_format_contains_expanded_false() -> TestResult<()> {
         let query = by_role(Role::Button).expanded(false);
 
-        verify_that!(format!("{query}"), eq(r#"role="Button" being collapsed"#))
+        verify_that!(format!("{query}"), eq(r#"role="Button", collapsed"#))
     }
 
     #[test]
@@ -1325,7 +1383,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                "No such element with role Button being expanded"
+                r#"No such element with role="Button", expanded"#
             )))
         )
     }
@@ -1347,7 +1405,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                "No such element with role Button being collapsed"
+                r#"No such element with role="Button", collapsed"#
             )))
         )
     }
@@ -1435,17 +1493,14 @@ mod tests {
     fn by_role_display_format_contains_disabled_true() -> TestResult<()> {
         let query = by_role(Role::Button).disabled(true);
 
-        verify_that!(format!("{query}"), eq(r#"role="Button" being disabled"#))
+        verify_that!(format!("{query}"), eq(r#"role="Button", disabled"#))
     }
 
     #[test]
     fn by_role_display_format_contains_disabled_false() -> TestResult<()> {
         let query = by_role(Role::Button).disabled(false);
 
-        verify_that!(
-            format!("{query}"),
-            eq(r#"role="Button" not being disabled"#)
-        )
+        verify_that!(format!("{query}"), eq(r#"role="Button", not disabled"#))
     }
 
     #[test]
@@ -1465,7 +1520,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                "No such element with role Button being disabled"
+                r#"No such element with role="Button", disabled"#
             )))
         )
     }
@@ -1487,7 +1542,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                "No such element with role Button not being disabled"
+                r#"No such element with role="Button", not disabled"#
             )))
         )
     }
@@ -1576,14 +1631,14 @@ mod tests {
     fn by_role_display_format_contains_selected_true() -> TestResult<()> {
         let query = by_role(Role::Tab).selected(true);
 
-        verify_that!(format!("{query}"), eq(r#"role="Tab" being selected"#))
+        verify_that!(format!("{query}"), eq(r#"role="Tab", selected"#))
     }
 
     #[test]
     fn by_role_display_format_contains_selected_false() -> TestResult<()> {
         let query = by_role(Role::Tab).selected(false);
 
-        verify_that!(format!("{query}"), eq(r#"role="Tab" being unselected"#))
+        verify_that!(format!("{query}"), eq(r#"role="Tab", unselected"#))
     }
 
     #[test]
@@ -1603,7 +1658,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                "No such element with role Tab being selected"
+                r#"No such element with role="Tab", selected"#
             )))
         )
     }
@@ -1625,7 +1680,7 @@ mod tests {
         verify_that!(
             result,
             err(displays_as(contains_substring(
-                "No such element with role Tab being unselected"
+                r#"No such element with role="Tab", unselected"#
             )))
         )
     }
