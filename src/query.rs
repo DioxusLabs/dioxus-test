@@ -520,6 +520,65 @@ pub fn by_placeholder(
     }
 }
 
+/// Returns a query selector matching elements whose tooltip is matched by the given matcher.
+///
+///
+/// The [tooltip](https://docs.rs/accesskit/latest/accesskit/struct.Node.html#method.tooltip) of
+/// an element is normally set from the global
+/// [`title` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/title).
+///
+/// ```
+/// use dioxus::prelude::*;
+/// use dioxus_test::{Role, by_tooltip, by_testid, matchers::{eq, inner_html}, render};
+///
+/// #[component]
+/// fn MyComponent() -> Element {
+///     let mut output = use_signal(|| String::new());
+///     rsx! {
+///         input {
+///              title: "Incorrect tooltip",
+///         }
+///         input {
+///              oninput: move |e| {
+///                  output.set(e.value());
+///              },
+///              title: "Correct tooltip",
+///         }
+///         div {
+///              "data-testid": "output",
+///              {output}
+///         }
+///     }
+/// }
+///
+/// # async fn test_fn() {
+/// let tester = render(MyComponent);
+/// tester
+///     .query(by_tooltip(eq("Correct tooltip")))
+///     .input("Arbitrary text")
+///     .await
+///     .unwrap();
+///
+/// tester
+///     .query(by_testid("output"))
+///     .expect(inner_html(eq("Arbitrary text")))
+///     .await
+///     .unwrap();
+/// # }
+/// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+/// ```
+///
+/// See [`by_name`] for more information on the matchers one can use with this query function.
+pub fn by_tooltip(
+    label: impl for<'a> Matcher<&'a str> + 'static,
+) -> QueryByAriaProperties<'static> {
+    QueryByAriaProperties {
+        tooltip: Some(Rc::new(some(label))),
+        hidden: Some(false),
+        ..Default::default()
+    }
+}
+
 type OptionStringSliceMatcher = dyn for<'a> Matcher<Option<&'a str>>;
 
 /// A query matching elements based on their [ARIA](https://www.w3.org/TR/wai-aria-1.2/) properties.
@@ -529,6 +588,7 @@ pub struct QueryByAriaProperties<'parent> {
     name: Option<Rc<OptionStringSliceMatcher>>,
     description: Option<Rc<OptionStringSliceMatcher>>,
     placeholder: Option<Rc<OptionStringSliceMatcher>>,
+    tooltip: Option<Rc<OptionStringSliceMatcher>>,
     level: Option<Rc<dyn Matcher<usize>>>,
     hidden: Option<bool>,
     expanded: Option<bool>,
@@ -804,6 +864,92 @@ impl<'parent> QueryByAriaProperties<'parent> {
     pub fn having_no_placeholder(self) -> Self {
         Self {
             placeholder: Some(Rc::new(none())),
+            ..self
+        }
+    }
+
+    /// Restricts this query to elements having a tooltip matched by the given matcher.
+    ///
+    /// The [tooltip](https://docs.rs/accesskit/latest/accesskit/struct.Node.html#method.tooltip) of
+    /// an element is normally set from the global
+    /// [`title` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/title).
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut output = use_signal(|| String::new());
+    ///     rsx! {
+    ///         input {
+    ///              title: "Incorrect tooltip",
+    ///         }
+    ///         input {
+    ///              oninput: move |e| {
+    ///                  output.set(e.value());
+    ///              },
+    ///              title: "Correct tooltip",
+    ///         }
+    ///         div {
+    ///              "data-testid": "output",
+    ///              {output}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # async fn test_fn() {
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::TextInput).having_tooltip(eq("Correct tooltip")))
+    ///     .input("Arbitrary text")
+    ///     .await
+    ///     .unwrap();
+    ///
+    /// tester
+    ///     .query(by_testid("output"))
+    ///     .expect(inner_html(eq("Arbitrary text")))
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+    /// ```
+    ///
+    /// See [`by_name`] for more information about the matchers one can use with this method.
+    pub fn having_tooltip(self, tooltip: impl for<'a> Matcher<&'a str> + 'static) -> Self {
+        Self {
+            tooltip: Some(Rc::new(some(tooltip))),
+            ..self
+        }
+    }
+
+    /// Restricts this query to elements having no tooltip.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html, len}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         input { title: "This element has a tooltip" }
+    ///         input {}
+    ///     }
+    /// }
+    ///
+    /// # async fn test_fn() {
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query_all(by_role(Role::TextInput).having_no_tooltip())
+    ///     .expect(len(eq(1)))
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+    /// ```
+    pub fn having_no_tooltip(self) -> Self {
+        Self {
+            tooltip: Some(Rc::new(none())),
             ..self
         }
     }
@@ -1231,6 +1377,10 @@ impl<'parent> QueryByAriaProperties<'parent> {
                 .placeholder
                 .as_ref()
                 .is_none_or(|placeholder| placeholder.matches(&node.placeholder()).is_match())
+            && self
+                .tooltip
+                .as_ref()
+                .is_none_or(|tooltip| tooltip.matches(&node.tooltip()).is_match())
             && self.level.as_ref().is_none_or(|level| {
                 // accesskit levels are zero-based, while ARIA levels are one-based.
                 // See https://docs.rs/accesskit/latest/accesskit/struct.Node.html#method.level
@@ -1267,6 +1417,12 @@ impl<'parent> QueryByAriaProperties<'parent> {
             components.push(format!(
                 "placeholder {}",
                 placeholder.describe(MatcherResult::Match)
+            ));
+        }
+        if let Some(tooltip) = &self.tooltip {
+            components.push(format!(
+                "tooltip {}",
+                tooltip.describe(MatcherResult::Match)
             ));
         }
         if let Some(level) = &self.level {
@@ -1511,6 +1667,21 @@ mod tests {
             result,
             err(displays_as(contains_substring("Some placeholder")))
         )
+    }
+
+    #[test]
+    fn failure_message_for_query_by_role_includes_tooltip() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {}
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_role(Role::TextInput).having_tooltip(eq("Some tooltip")))
+            .immediately();
+
+        verify_that!(result, err(displays_as(contains_substring("Some tooltip"))))
     }
 
     #[test]
