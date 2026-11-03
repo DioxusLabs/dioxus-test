@@ -1,7 +1,7 @@
 use crate::{DocumentTester, TesterError};
 use blitz_dom::{BaseDocument, Document as _, Node, Point};
 use blitz_traits::events::BlitzFocusEvent;
-use dioxus_core::{ElementId, Event};
+use dioxus::core::{ElementId, Event};
 use dioxus_html::{
     Modifiers, PlatformEventData,
     geometry::{Coordinates, euclid::Point2D},

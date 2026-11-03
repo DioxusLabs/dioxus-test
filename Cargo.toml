@@ -11,20 +11,20 @@ keywords = ["dom", "ui", "gui", "react", "testing"]
 
 [dependencies]
 accesskit = "0.25"
-blitz-dom = { git = "https://github.com/hovinen/blitz", branch = "flesh-out-accessible-description", default-features = false }
-blitz-traits = { git = "https://github.com/hovinen/blitz", branch = "flesh-out-accessible-description", default-features = false }
-dioxus-core = { git = "https://github.com/DioxusLabs/dioxus" }
+blitz-dom = { git = "https://github.com/hovinen/blitz", branch = "support-name-from-title", default-features = false }
+blitz-traits = { git = "https://github.com/hovinen/blitz", branch = "support-name-from-title", default-features = false }
+dioxus = { git = "https://github.com/DioxusLabs/dioxus" }
 dioxus-html = { git = "https://github.com/DioxusLabs/dioxus" }
 dioxus-native-dom = { git = "https://github.com/DioxusLabs/dioxus" }
 smallvec = "1.15.2"
-style = { version = "0.22.0", git = "https://github.com/DioxusLabs/stylo", rev = "d6502e0002e9c40c43a0a4776f9e7eb93be360e3", package = "stylo" }
+style = { version = "0.22.0", git = "https://github.com/nicoburns/stylo", rev = "78734bf554bb40af9dc11c0eedbe724f6055697c", package = "stylo" }
 test-that = { version = "0.6.0", default-features = false, features = ["regex", "num-traits"] }
 tokio = { version = "1.48", features = ["time"] }
 tracing = { version = "0.1.41" }
 
 [patch.crates-io]
-blitz-dom = { git = "https://github.com/hovinen/blitz", branch = "flesh-out-accessible-description" }
-blitz-traits = { git = "https://github.com/hovinen/blitz", branch = "flesh-out-accessible-description" }
+blitz-dom = { git = "https://github.com/hovinen/blitz", branch = "support-name-from-title" }
+blitz-traits = { git = "https://github.com/hovinen/blitz", branch = "support-name-from-title" }
 
 [dev-dependencies]
 dioxus= { git = "https://github.com/DioxusLabs/dioxus" }
