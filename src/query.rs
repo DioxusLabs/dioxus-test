@@ -509,58 +509,7 @@ pub fn by_name(label: impl for<'a> Matcher<&'a str> + 'static) -> QueryByAriaPro
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
 /// ```
 ///
-/// You can use the following matchers:
-///
-/// - [`eq`][crate::matchers::eq] for exact equality,
-/// - [`contains_substring`][crate::matchers::contains_substring] for string containment,
-/// - [`starts_with`][crate::matchers::starts_with] to match the start of the string,
-/// - [`ends_with`][crate::matchers::ends_with] to match the end of the string,
-/// - [`matches_regex`][crate::matchers::matches_regex] to match placeholders fully satisfying the
-///   given regular expression,
-/// - [`contains_regex`][crate::matchers::contains_regex] to match placeholders containing a substring
-///   satisfying the given regular expression.
-///
-/// For case-insensitive matching, invoke the method
-/// [`ignoring_ascii_case`][crate::matchers::StrMatcherConfigurator::ignoring_ascii_case]. This
-/// is available on all matchers above _except_ `matches_regex` and `contains_regex`.
-///
-/// ```
-/// use dioxus::prelude::*;
-/// use dioxus_test::{Role, by_placeholder, by_testid, matchers::{eq, inner_html, StrMatcherConfigurator as _}, render};
-///
-/// #[component]
-/// fn MyComponent() -> Element {
-///     let mut output = use_signal(|| String::new());
-///     rsx! {
-///         input {
-///              oninput: move |e| {
-///                  output.set(e.value());
-///              },
-///              placeholder: "placeholder",
-///         }
-///         div {
-///              "data-testid": "output",
-///              {output}
-///         }
-///     }
-/// }
-///
-/// # async fn test_fn() {
-/// let tester = render(MyComponent);
-/// tester
-///     .query(by_placeholder(eq("PLACEholder").ignoring_ascii_case()))
-///     .input("Arbitrary text")
-///     .await
-///     .unwrap();
-///
-/// tester
-///     .query(by_testid("output"))
-///     .expect(inner_html(eq("Arbitrary text")))
-///     .await
-///     .unwrap();
-/// # }
-/// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
-/// ```
+/// See [`by_name`] for more information on the matchers one can use with this query function.
 pub fn by_placeholder(
     label: impl for<'a> Matcher<&'a str> + 'static,
 ) -> QueryByAriaProperties<'static> {
@@ -777,11 +726,7 @@ impl<'parent> QueryByAriaProperties<'parent> {
         }
     }
 
-    /// Restricts this query to elements having an accessible placeholder matched by the given
-    /// matcher.
-    ///
-    /// See [W3C documentation](https://w3c.github.io/aria/accname/#dfn-accessible-placeholder) for
-    /// information on the accessible placeholder of an element.
+    /// Restricts this query to elements having a placeholder matched by the given matcher.
     ///
     /// ```
     /// use dioxus::prelude::*;
@@ -832,8 +777,7 @@ impl<'parent> QueryByAriaProperties<'parent> {
         }
     }
 
-    /// Restricts this query to elements having no accessible placeholder as defined by the
-    /// [W3C specification](https://w3c.github.io/accname/#dfn-accessible-placeholder).
+    /// Restricts this query to elements having no placeholder.
     ///
     /// ```
     /// use dioxus::prelude::*;
