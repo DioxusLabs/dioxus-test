@@ -113,7 +113,7 @@ dependencies = [
 [[package]]
 name = "blitz-dom"
 version = "0.3.0-beta.4"
-source = "git+https://github.com/hovinen/blitz?branch=support-name-from-title#1bf27cb8d39dd2a704e326233060774d74143f6c"
+source = "git+https://github.com/hovinen/blitz?branch=support-tooltip#633253164cf8c72c1523712d7704dd11bc510a2a"
 dependencies = [
  "accesskit",
  "anyrender",
@@ -163,7 +163,7 @@ dependencies = [
 [[package]]
 name = "blitz-traits"
 version = "0.3.0-beta.4"
-source = "git+https://github.com/hovinen/blitz?branch=support-name-from-title#1bf27cb8d39dd2a704e326233060774d74143f6c"
+source = "git+https://github.com/hovinen/blitz?branch=support-tooltip#633253164cf8c72c1523712d7704dd11bc510a2a"
 dependencies = [
  "atomic_refcell",
  "bitflags",
@@ -517,7 +517,7 @@ checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
 [[package]]
 name = "debug_timer"
 version = "0.1.3"
-source = "git+https://github.com/hovinen/blitz?branch=support-name-from-title#1bf27cb8d39dd2a704e326233060774d74143f6c"
+source = "git+https://github.com/hovinen/blitz?branch=support-tooltip#633253164cf8c72c1523712d7704dd11bc510a2a"
 
 [[package]]
 name = "derive_more"
@@ -2868,7 +2868,7 @@ dependencies = [
 [[package]]
 name = "stylo_taffy"
 version = "0.3.0-beta.4"
-source = "git+https://github.com/hovinen/blitz?branch=support-name-from-title#1bf27cb8d39dd2a704e326233060774d74143f6c"
+source = "git+https://github.com/hovinen/blitz?branch=support-tooltip#633253164cf8c72c1523712d7704dd11bc510a2a"
 dependencies = [
  "bitflags",
  "stylo",
