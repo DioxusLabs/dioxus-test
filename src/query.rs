@@ -466,6 +466,60 @@ pub fn by_name(label: impl for<'a> Matcher<&'a str> + 'static) -> QueryByAriaPro
     }
 }
 
+/// Returns a query selector matching elements whose placeholder is matched by the given matcher.
+///
+/// ```
+/// use dioxus::prelude::*;
+/// use dioxus_test::{Role, by_placeholder, by_testid, matchers::{eq, inner_html}, render};
+///
+/// #[component]
+/// fn MyComponent() -> Element {
+///     let mut output = use_signal(|| String::new());
+///     rsx! {
+///         input {
+///              placeholder: "Incorrect placeholder",
+///         }
+///         input {
+///              oninput: move |e| {
+///                  output.set(e.value());
+///              },
+///              placeholder: "Correct placeholder",
+///         }
+///         div {
+///              "data-testid": "output",
+///              {output}
+///         }
+///     }
+/// }
+///
+/// # async fn test_fn() {
+/// let tester = render(MyComponent);
+/// tester
+///     .query(by_placeholder(eq("Correct placeholder")))
+///     .input("Arbitrary text")
+///     .await
+///     .unwrap();
+///
+/// tester
+///     .query(by_testid("output"))
+///     .expect(inner_html(eq("Arbitrary text")))
+///     .await
+///     .unwrap();
+/// # }
+/// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+/// ```
+///
+/// See [`by_name`] for more information on the matchers one can use with this query function.
+pub fn by_placeholder(
+    label: impl for<'a> Matcher<&'a str> + 'static,
+) -> QueryByAriaProperties<'static> {
+    QueryByAriaProperties {
+        placeholder: Some(Rc::new(some(label))),
+        hidden: Some(false),
+        ..Default::default()
+    }
+}
+
 type OptionStringSliceMatcher = dyn for<'a> Matcher<Option<&'a str>>;
 
 /// A query matching elements based on their [ARIA](https://www.w3.org/TR/wai-aria-1.2/) properties.
@@ -474,6 +528,7 @@ pub struct QueryByAriaProperties<'parent> {
     role: Option<Role>,
     name: Option<Rc<OptionStringSliceMatcher>>,
     description: Option<Rc<OptionStringSliceMatcher>>,
+    placeholder: Option<Rc<OptionStringSliceMatcher>>,
     level: Option<Rc<dyn Matcher<usize>>>,
     hidden: Option<bool>,
     expanded: Option<bool>,
@@ -667,6 +722,88 @@ impl<'parent> QueryByAriaProperties<'parent> {
     pub fn having_no_description(self) -> Self {
         Self {
             description: Some(Rc::new(none())),
+            ..self
+        }
+    }
+
+    /// Restricts this query to elements having a placeholder matched by the given matcher.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut output = use_signal(|| String::new());
+    ///     rsx! {
+    ///         input {
+    ///              placeholder: "Incorrect placeholder",
+    ///         }
+    ///         input {
+    ///              oninput: move |e| {
+    ///                  output.set(e.value());
+    ///              },
+    ///              placeholder: "Correct placeholder",
+    ///         }
+    ///         div {
+    ///              "data-testid": "output",
+    ///              {output}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # async fn test_fn() {
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query(by_role(Role::TextInput).having_placeholder(eq("Correct placeholder")))
+    ///     .input("Arbitrary text")
+    ///     .await
+    ///     .unwrap();
+    ///
+    /// tester
+    ///     .query(by_testid("output"))
+    ///     .expect(inner_html(eq("Arbitrary text")))
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+    /// ```
+    ///
+    /// See [`by_name`] for more information about the matchers one can use with this method.
+    pub fn having_placeholder(self, placeholder: impl for<'a> Matcher<&'a str> + 'static) -> Self {
+        Self {
+            placeholder: Some(Rc::new(some(placeholder))),
+            ..self
+        }
+    }
+
+    /// Restricts this query to elements having no placeholder.
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{Role, by_role, by_testid, matchers::{eq, inner_html, len}, render};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         input { placeholder: "This element has a placeholder" }
+    ///         input {}
+    ///     }
+    /// }
+    ///
+    /// # async fn test_fn() {
+    /// let tester = render(MyComponent);
+    /// tester
+    ///     .query_all(by_role(Role::TextInput).having_no_placeholder())
+    ///     .expect(len(eq(1)))
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(test_fn());
+    /// ```
+    pub fn having_no_placeholder(self) -> Self {
+        Self {
+            placeholder: Some(Rc::new(none())),
             ..self
         }
     }
@@ -1090,6 +1227,10 @@ impl<'parent> QueryByAriaProperties<'parent> {
                 .description
                 .as_ref()
                 .is_none_or(|description| description.matches(&node.description()).is_match())
+            && self
+                .placeholder
+                .as_ref()
+                .is_none_or(|placeholder| placeholder.matches(&node.placeholder()).is_match())
             && self.level.as_ref().is_none_or(|level| {
                 // accesskit levels are zero-based, while ARIA levels are one-based.
                 // See https://docs.rs/accesskit/latest/accesskit/struct.Node.html#method.level
@@ -1120,6 +1261,12 @@ impl<'parent> QueryByAriaProperties<'parent> {
             components.push(format!(
                 "description {}",
                 description.describe(MatcherResult::Match)
+            ));
+        }
+        if let Some(placeholder) = &self.placeholder {
+            components.push(format!(
+                "placeholder {}",
+                placeholder.describe(MatcherResult::Match)
             ));
         }
         if let Some(level) = &self.level {
@@ -1346,6 +1493,24 @@ mod tests {
             .immediately();
 
         verify_that!(result, err(displays_as(contains_substring("A button"))))
+    }
+
+    #[test]
+    fn failure_message_for_query_by_role_includes_placeholder() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {}
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query(by_role(Role::TextInput).having_placeholder(eq("Some placeholder")))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring("Some placeholder")))
+        )
     }
 
     #[test]
