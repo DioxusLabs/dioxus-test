@@ -5,7 +5,7 @@ use crate::{
 };
 use blitz_dom::Document as _;
 use blitz_traits::events::{BlitzKeyEvent, KeyState, UiEvent};
-use dioxus_core::{Element, VirtualDom};
+use dioxus::core::{Element, VirtualDom};
 use dioxus_html::{Code, Key, Modifiers};
 use dioxus_native_dom::{DioxusDocument, DocumentConfig};
 use std::{
