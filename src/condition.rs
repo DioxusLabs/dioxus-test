@@ -204,6 +204,49 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
         element.focus()
     }
 
+    /// Simulates the user hovering the mouse cursor over the element this instance represents.
+    ///
+    /// This is then handled by an element with the `onpointerenter` event handler.
+    ///
+    /// ```
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{matchers::{eq, inner_html}, render, by_testid};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut text = use_signal(|| "");
+    ///     rsx! {
+    ///         div {
+    ///             "data-testid": "element",
+    ///             onpointerenter: move |_| {
+    ///                 text.set("Hover!")
+    ///             },
+    ///             {text}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[tokio::test]
+    /// # */
+    /// async fn input_element_processes_entered_text() {
+    ///     let tester = render(MyComponent);
+    ///     tester.query(by_testid("element")).hover().await.unwrap();
+    ///     tester
+    ///         .query(by_testid("element"))
+    ///         .expect(inner_html(eq("Hover!")))
+    ///         .await
+    ///         .unwrap();
+    /// }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(input_element_processes_entered_text());
+    /// ```
+    ///
+    /// This runs the event loop until the element appears, if necessary, up to [`MAX_TRIES`] times.
+    /// It returns `Err` if the element does not appear.
+    pub async fn hover(&self) -> Result<(), TesterError> {
+        let element = self.clone().into_future().await?;
+        element.hover()
+    }
+
     /// Inputs the given text on the element to which this query resolves.
     ///
     /// This does not respect keyboard focus. It operates as though the focus were switched to the

@@ -1,6 +1,9 @@
 use crate::{DocumentTester, TesterError};
-use blitz_dom::{BaseDocument, Document as _, Node, Point};
-use blitz_traits::events::BlitzFocusEvent;
+use blitz_dom::{BaseDocument, Document as _, Node};
+use blitz_traits::events::{
+    BlitzFocusEvent, BlitzPointerEvent, BlitzPointerId, MouseEventButton, MouseEventButtons, Point,
+    PointerCoords,
+};
 use dioxus::core::{ElementId, Event};
 use dioxus_html::{
     Modifiers, PlatformEventData,
@@ -66,6 +69,19 @@ impl ResolvedElement {
     /// [DocumentTester::key_up][crate::DocumentTester::key_up] will be routed through this element.
     pub fn focus(&self) -> crate::Result<()> {
         change_focus(self.document.borrow_mut(), self.node_id);
+        Ok(())
+    }
+
+    pub fn hover(&self) -> crate::Result<()> {
+        let event = {
+            let document = self.document.borrow();
+            let inner = document.inner();
+            let node = self.node_id.resolve(&inner);
+            synthetic_pointer_event_data(node)
+        };
+        let mut document = self.document.borrow_mut();
+        document.handle_ui_event(blitz_traits::events::UiEvent::PointerMove(event));
+        DocumentTester::resolve_effects_and_styles(document, self.now);
         Ok(())
     }
 
@@ -348,4 +364,38 @@ fn get_element_id(guard: &impl Deref<Target = BaseDocument>, node_id: NodeId) ->
         .iter()
         .find(|attr| *attr.name.local == *"data-dioxus-id")?;
     Some(ElementId::from_raw(attr.value.parse::<usize>().ok()?))
+}
+
+fn synthetic_pointer_event_data(node: &Node) -> BlitzPointerEvent {
+    let final_layout = node.final_layout();
+    let centre_offset = Point {
+        x: final_layout.size.width / 2.0,
+        y: final_layout.size.height / 2.0,
+    };
+    let screen_position = Point {
+        x: final_layout.location.x + centre_offset.x,
+        y: final_layout.location.y + centre_offset.y,
+    };
+    let page_position = node.absolute_position(centre_offset.x, centre_offset.y);
+
+    BlitzPointerEvent {
+        id: BlitzPointerId::Mouse,
+        is_primary: true,
+        coords: PointerCoords {
+            page_x: page_position.x,
+            page_y: page_position.y,
+
+            // TODO: should these be different?
+            screen_x: screen_position.x,
+            screen_y: screen_position.y,
+            client_x: screen_position.x,
+            client_y: screen_position.y,
+        },
+        mods: Modifiers::empty(),
+        button: MouseEventButton::Main,
+        buttons: MouseEventButtons::empty(),
+        details: Default::default(),
+        element: centre_offset,
+        active_pointers: Default::default(),
+    }
 }
