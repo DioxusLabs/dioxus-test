@@ -1,12 +1,12 @@
 use crate::{
     DocumentTester, TesterError,
     element::ResolvedElement,
-    query::{IntoQuery, ParentableQuery, Query},
+    query::{IntoQuery, LastElementQuery, NthElementQuery, ParentableQuery, Query},
 };
 use std::{marker::PhantomData, ops::ControlFlow, pin::Pin};
 use test_that::{description::Description, matcher::MatcherResult, prelude::Matcher};
 
-/// The maximum number of attempts [DocumentTester] will make to find a given element or make a
+/// The maximum number of attempts [`DocumentTester`] will make to find a given element or make a
 /// given assertion on the DOM before concluding that the element will not appear.
 // TODO: Make this configurable.
 pub const MAX_TRIES: usize = 5;
@@ -47,7 +47,7 @@ pub trait Waitable: EventLoopDriver {
 /// A representation of a single element on the DOM which may already exist or may exist in the
 /// future.
 ///
-/// A test can make assertions on the element with [ElementCondition::expect]. The test decides
+/// A test can make assertions on the element with [`ElementCondition::expect`]. The test decides
 /// whether to make the assertion immediately or await it.
 ///
 /// ```
@@ -77,7 +77,7 @@ pub trait Waitable: EventLoopDriver {
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(my_component_renders_correctly());
 /// ```
 ///
-/// A test can interact with the element once it appears, such as with [ElementCondition::click].
+/// A test can interact with the element once it appears, such as with [`ElementCondition::click`].
 ///
 /// ```
 /// use dioxus::prelude::*;
@@ -104,7 +104,7 @@ pub trait Waitable: EventLoopDriver {
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(my_component_has_a_button());
 /// ```
 ///
-/// A test can also fetch or await an `ElementCondition` directly to produce a [ResolvedElement]
+/// A test can also fetch or await an `ElementCondition` directly to produce a [`ResolvedElement`]
 /// for further assertions.
 ///
 /// ```
@@ -137,8 +137,8 @@ pub trait Waitable: EventLoopDriver {
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(my_component_renders_correctly());
 /// ```
 ///
-/// This will drive the event loop up to [MAX_TRIES] to await the appearance of the element. If the
-/// element does not appear by then, the attempt to await the element returns an error.
+/// This will drive the event loop up to [`MAX_TRIES`] to await the appearance of the element. If
+/// the element does not appear by then, the attempt to await the element returns an error.
 ///
 /// ```
 /// use dioxus::prelude::*;
@@ -183,7 +183,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
 
     /// Simulates the user clicking on the element this instance represents.
     ///
-    /// This runs the event loop until the element appears, if necessary, up to [MAX_TRIES] times.
+    /// This runs the event loop until the element appears, if necessary, up to [`MAX_TRIES`] times.
     /// It returns `Err` if the element does not appear.
     pub async fn click(&self) -> Result<(), TesterError> {
         let element = self.clone().into_future().await?;
@@ -193,9 +193,9 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
     /// Sets the keyboard focus to the element to which this query resolves.
     ///
     /// This means that keyboard focus events triggered through
-    /// [DocumentTester::key_down][crate::DocumentTester::key_down] and
-    /// [DocumentTester::key_up][crate::DocumentTester::key_up] will be routed through the matching
-    /// element.
+    /// [`DocumentTester::key_down`][crate::DocumentTester::key_down] and
+    /// [`DocumentTester::key_up`][crate::DocumentTester::key_up] will be routed through the
+    /// matching element.
     ///
     /// Returns `Result::Ok` if the focus was successful, `Result::Err` if the matching element was
     /// not found in the DOM.
@@ -248,7 +248,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
         element.input(text)
     }
 
-    /// Synonym for [ElementCondition::click].
+    /// Synonym for [`ElementCondition::click`].
     pub async fn tap(&self) -> Result<(), TesterError>
     where
         Q: Clone,
@@ -257,7 +257,8 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
         Ok(())
     }
 
-    /// Asserts that the given [Matcher] matches this element, either immediately or in the future.
+    /// Asserts that the given [`Matcher`] matches this element, either immediately or in the
+    /// future.
     ///
     /// The test can require that the element already be present and matched:
     ///
@@ -420,10 +421,91 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
         }
     }
 
+    /// Asserts that no element in the DOM matches the given query.
+    ///
+    /// One can make the assertion immediately:
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{matchers::{eq, inner_html}, render, Result};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         div {
+    ///              class: "test-component",
+    ///              "Hello, world!"
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[test]
+    /// # */
+    /// fn should_pass() -> Result<()> {
+    ///     let tester = render(MyComponent);
+    ///     tester
+    ///         .query(".nonexistent-component")
+    ///         .expect_no_matching_element() // No such element exists, so passes
+    ///         .immediately()
+    /// }
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[test]
+    /// # */
+    /// fn should_fail() -> Result<()> {
+    ///     let tester = render(MyComponent);
+    ///     tester
+    ///         .query(".test-component")
+    ///         .expect_no_matching_element() // Fails because there exists such an element
+    ///         .immediately()
+    /// }
+    /// # should_pass().unwrap();
+    /// # should_fail().unwrap_err();
+    /// ```
+    ///
+    /// On can also wait for the assertion with `await`:
+    ///
+    /// ```
+    /// use dioxus::prelude::*;
+    /// use dioxus_test::{matchers::{eq, inner_html}, render, Result};
+    ///
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         div {
+    ///              class: "test-component",
+    ///              "Hello, world!"
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[tokio::test]
+    /// # */
+    /// async fn should_pass() -> Result<()> {
+    ///     let tester = render(MyComponent);
+    ///     tester
+    ///         .query(".nonexistent-component")
+    ///         .expect_no_matching_element() // No such element exists, so passes
+    ///         .await
+    /// }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(should_pass()).unwrap();
+    /// ```
+    ///
+    /// > Warning! The same warning applies as with [`expect`][Self::expect]: the assertion passes
+    /// > as soon as _no_ matching element is found in the DOM, even if that is a temporary
+    /// > condition which will change later.
+    pub fn expect_no_matching_element(&self) -> NoMatchingElementCondition<'vdom, Q> {
+        NoMatchingElementCondition {
+            element: self.clone(),
+            phantom: Default::default(),
+        }
+    }
+
     /// Resolves the element represented by this instance without running the event loop.
     ///
-    /// This can be used to obtain a [ResolvedElement] on which the test can operate when one knows
-    /// that the element must already exist.
+    /// This can be used to obtain a [`ResolvedElement`] on which the test can operate when one
+    /// knows that the element must already exist.
     ///
     /// ```rust
     /// # use dioxus::prelude::*;
@@ -547,6 +629,11 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
             query,
         }
     }
+
+    fn describe_unexpected_element(&self) -> TesterError {
+        self.query
+            .describe_unexpected_element(&self.data.document())
+    }
 }
 
 impl<'vdom, Q: Query> EventLoopDriver for ElementCondition<'vdom, Q> {
@@ -617,7 +704,7 @@ impl<'vdom, Q: Query + 'vdom> IntoFuture for ElementCondition<'vdom, Q> {
 
 /// A representation of a set of elements on the DOM matching a query, currently or in the future.
 ///
-/// A test can make assertions on the elements with [AllElementsCondition::expect]. The test decides
+/// A test can make assertions on the elements with [`AllElementsCondition::expect`]. The test decides
 /// whether to make the assertion immediately or await it.
 ///
 /// ```
@@ -647,8 +734,8 @@ impl<'vdom, Q: Query + 'vdom> IntoFuture for ElementCondition<'vdom, Q> {
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(my_component_renders_correctly());
 /// ```
 ///
-/// The test can also resolve the elements into a `Vec` of [ResolvedElement] with
-/// [AllElementsCondition::immediately].
+/// The test can also resolve the elements into a `Vec` of [`ResolvedElement`] with
+/// [`AllElementsCondition::immediately`].
 ///
 /// ```
 /// use dioxus::prelude::*;
@@ -675,8 +762,8 @@ impl<'vdom, Q: Query + 'vdom> IntoFuture for ElementCondition<'vdom, Q> {
 /// # my_component_renders_correctly();
 /// ```
 ///
-/// Unlike [ElementCondition], there is no notion of waiting for the matched elements to appear. The
-/// must use [AllElementsCondition::expect] to await a condition on the set of elements.
+/// Unlike [`ElementCondition`], there is no notion of waiting for the matched elements to appear. The
+/// must use [`AllElementsCondition::expect`] to await a condition on the set of elements.
 #[derive(Clone)]
 pub struct AllElementsCondition<'vdom, Q> {
     data: &'vdom DocumentTester,
@@ -688,7 +775,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> AllElementsCondition<'vdom, Q> {
         Self { data, query }
     }
 
-    /// Asserts that the given [Matcher] matches this element collection, either immediately or in
+    /// Asserts that the given [`Matcher`] matches this element collection, either immediately or in
     /// the future.
     ///
     /// The test can require that the element already be present and matched:
@@ -751,7 +838,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> AllElementsCondition<'vdom, Q> {
     /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(my_component_renders_correctly());
     /// ```
     ///
-    /// > Warning! The same warning applies as with [ElementCondition] about awaiting an
+    /// > Warning! The same warning applies as with [`ElementCondition`] about awaiting an
     /// > expectation: The test may spuriously pass despite the implementation being wrong.
     pub fn expect<M>(&self, matcher: M) -> MatcherCondition<'vdom, M, Self>
     where
@@ -764,12 +851,149 @@ impl<'vdom, Q: Query + Clone + 'vdom> AllElementsCondition<'vdom, Q> {
         }
     }
 
+    /// Resolves elements represented by this instance without running the event loop.
+    ///
+    /// This can be used to obtain the [`ResolvedElement`]'s on which the test can operate when one
+    /// knows that all relevant elements must already exist.
+    ///
+    /// ```rust
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{render, matchers::{eq, len}};
+    /// #[component]
+    /// fn AComponent() -> Element {
+    ///    rsx! {
+    ///        button {
+    ///            onclick: move |_| {},
+    ///            "Click me!"
+    ///        }
+    ///    }
+    /// }
+    /// # async fn run_test() -> std::result::Result<(), Box<dyn std::error::Error>> {
+    /// let tester = dioxus_test::render(AComponent);
+    /// let query = tester.query_all("button");
+    /// assert_eq!(query.immediately().len(), 1);
+    /// # Ok(())
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test()).unwrap();
+    /// ```
     pub fn immediately(&self) -> Vec<ResolvedElement> {
         let node_ids = self.query.get_all_elements(&self.data.document());
         node_ids
             .into_iter()
             .map(|node_id| self.data.build_resolved_element(node_id))
             .collect()
+    }
+
+    /// Returns a new query for the nth element matching this query's condition in DOM order.
+    ///
+    /// The value is 0-based, so, e.g. passing `1` returns the _second_ matching element.
+    ///
+    /// ```rust
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{render, matchers::{eq, inner_html}};
+    /// #[component]
+    /// fn AComponent() -> Element {
+    ///    rsx! {
+    ///        div {
+    ///            "First matching div"
+    ///        }
+    ///        div {
+    ///            "Second matching div"
+    ///        }
+    ///        div {
+    ///            "Third matching div"
+    ///        }
+    ///    }
+    /// }
+    /// # async fn run_test() -> dioxus_test::Result<()> {
+    /// let tester = dioxus_test::render(AComponent);
+    /// tester
+    ///     .query_all("div")
+    ///     .nth(1)
+    ///     .expect(inner_html(eq("Second matching div")))
+    ///     .immediately()
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test()).unwrap();
+    /// ```
+    pub fn nth(&self, n: usize) -> ElementCondition<'vdom, NthElementQuery<Q>> {
+        ElementCondition {
+            data: self.data,
+            query: NthElementQuery::new(self.query.clone(), n),
+        }
+    }
+
+    /// Returns a new query for the first element matching this query's condition in DOM order.
+    ///
+    /// ```rust
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{render, matchers::{eq, inner_html}};
+    /// #[component]
+    /// fn AComponent() -> Element {
+    ///    rsx! {
+    ///        div {
+    ///            "First matching div"
+    ///        }
+    ///        div {
+    ///            "Second matching div"
+    ///        }
+    ///        div {
+    ///            "Third matching div"
+    ///        }
+    ///    }
+    /// }
+    /// # async fn run_test() -> dioxus_test::Result<()> {
+    /// let tester = dioxus_test::render(AComponent);
+    /// tester
+    ///     .query_all("div")
+    ///     .first()
+    ///     .expect(inner_html(eq("First matching div")))
+    ///     .immediately()
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test()).unwrap();
+    /// ```
+    ///
+    /// This method is a synonym for [`nth(0)`][Self::nth].
+    pub fn first(&self) -> ElementCondition<'vdom, NthElementQuery<Q>> {
+        ElementCondition {
+            data: self.data,
+            query: NthElementQuery::new(self.query.clone(), 0),
+        }
+    }
+
+    /// Returns a new query for the last element matching this query's condition in DOM order.
+    ///
+    /// ```rust
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{render, matchers::{eq, inner_html}};
+    /// #[component]
+    /// fn AComponent() -> Element {
+    ///    rsx! {
+    ///        div {
+    ///            "First matching div"
+    ///        }
+    ///        div {
+    ///            "Second matching div"
+    ///        }
+    ///        div {
+    ///            "Third matching div"
+    ///        }
+    ///    }
+    /// }
+    /// # async fn run_test() -> dioxus_test::Result<()> {
+    /// let tester = dioxus_test::render(AComponent);
+    /// tester
+    ///     .query_all("div")
+    ///     .last()
+    ///     .expect(inner_html(eq("Third matching div")))
+    ///     .immediately()
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test()).unwrap();
+    /// ```
+    pub fn last(&self) -> ElementCondition<'vdom, LastElementQuery<Q>> {
+        ElementCondition {
+            data: self.data,
+            query: LastElementQuery::new(self.query.clone()),
+        }
     }
 }
 
@@ -814,7 +1038,7 @@ where
     }
 }
 
-/// A representation of a concrete assertion on an element or set of elements using a [Matcher].
+/// A representation of a concrete assertion on an element or set of elements using a [`Matcher`].
 ///
 /// This can be awaited like a `Future`, in which case it resolves to a `Result<(), TesterError>`:
 ///
@@ -845,10 +1069,10 @@ where
 /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(my_component_renders_correctly());
 /// ```
 ///
-/// This will then drive the event loop up to [MAX_TRIES] times until the condition is true. If it
+/// This will then drive the event loop up to [`MAX_TRIES`] times until the condition is true. If it
 /// is not true in that time, the assertion fails and this instance resolves to a `Result::Err`.
 ///
-/// The test can make this assertion immediately with [MatcherCondition::immediately].
+/// The test can make this assertion immediately with [`MatcherCondition::immediately`].
 pub struct MatcherCondition<'vdom, M, W> {
     element: W,
     matcher: M,
@@ -1025,4 +1249,182 @@ pub trait Matchable<M> {
     fn matches(&self, matcher: &M) -> ControlFlow<()>;
 
     fn explain_match_failure(&self, matcher: &M) -> TesterError;
+}
+
+/// A representation of an assertion that no element exists in the DOM matching the given
+/// [`ElementCondition`].
+///
+/// This will drive the event loop up to [`MAX_TRIES`] to await the disappearance of the element. If
+/// the element is still matched after that, the attempt to await the condition returns an error.
+pub struct NoMatchingElementCondition<'vdom, Q> {
+    element: ElementCondition<'vdom, Q>,
+    phantom: PhantomData<&'vdom ()>,
+}
+
+impl<'vdom, Q: Query + Clone> NoMatchingElementCondition<'vdom, Q> {
+    /// Results this condition without running the event loop.
+    ///
+    /// This returns `Result::Ok` if no matching element is found in the DOM in its current state,
+    /// `Result::Err` if a matching element is present.
+    pub fn immediately(&'vdom self) -> Result<(), TesterError> {
+        match self.element.check() {
+            ControlFlow::Continue(_) => Ok(()),
+            ControlFlow::Break(_) => Err(self.describe_failure()),
+        }
+    }
+}
+
+impl<'vdom, Q: Query> EventLoopDriver for NoMatchingElementCondition<'vdom, Q> {
+    async fn pump(&mut self) {
+        self.element.pump().await;
+    }
+}
+
+impl<'vdom, Q: Query + Clone> Waitable for NoMatchingElementCondition<'vdom, Q> {
+    type Output = ();
+
+    fn check(&self) -> ControlFlow<Self::Output> {
+        match self.element.check() {
+            ControlFlow::Continue(_) => ControlFlow::Break(()),
+            ControlFlow::Break(_) => ControlFlow::Continue(()),
+        }
+    }
+
+    fn describe_failure(&self) -> TesterError {
+        self.element.describe_unexpected_element()
+    }
+}
+
+impl<'vdom, Q: Query + Clone + 'vdom> IntoFuture for NoMatchingElementCondition<'vdom, Q> {
+    type Output = Result<(), TesterError>;
+    type IntoFuture = Pin<Box<dyn Future<Output = Self::Output> + 'vdom>>;
+
+    fn into_future(mut self) -> Self::IntoFuture {
+        Box::pin(async move { self.to_waitable_future().await })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        by_role,
+        matchers::{eq, inner_html},
+        render,
+    };
+    use accesskit::Role;
+    use dioxus::prelude::*;
+    use test_that::prelude::*;
+
+    #[test]
+    fn shows_correct_failure_message_when_nth_element_does_not_match() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div {
+                    "First"
+                }
+                div {
+                    "Second"
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query_all(by_role(Role::GenericContainer))
+            .nth(1)
+            .expect(inner_html(eq("Third")))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                r#"role="GenericContainer"; requested element #1"#
+            )))
+        )
+    }
+
+    #[test]
+    fn shows_correct_failure_message_when_nth_element_does_not_exist() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div {
+                    "First"
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query_all(by_role(Role::GenericContainer))
+            .nth(1)
+            .expect(inner_html(eq("Third")))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                r#"Not enough elements matching role="GenericContainer"; requested element #1, found 1"#
+            )))
+        )
+    }
+
+    #[test]
+    fn shows_correct_failure_message_when_nth_element_unexpectedly_exists() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div {
+                    "First"
+                }
+                div {
+                    "Second"
+                }
+                div {
+                    "Third"
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query_all(by_role(Role::GenericContainer))
+            .nth(2)
+            .expect_no_matching_element()
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                r#"Unexpected element matching role="GenericContainer"; asserted element #2 does not exist, found 3"#
+            )))
+        )
+    }
+
+    #[test]
+    fn shows_correct_failure_message_when_last_element_does_not_exist() -> TestResult<()> {
+        #[component]
+        fn TestComponent() -> Element {
+            rsx! {
+                div {
+                    "First"
+                }
+            }
+        }
+        let tester = render(TestComponent);
+
+        let result = tester
+            .query_all(by_role(Role::Button))
+            .last()
+            .expect(inner_html(eq("Third")))
+            .immediately();
+
+        verify_that!(
+            result,
+            err(displays_as(contains_substring(
+                r#"No such element with role="Button""#
+            )))
+        )
+    }
 }
