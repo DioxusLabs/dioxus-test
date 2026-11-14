@@ -53,19 +53,18 @@ impl ResolvedElement {
     /// This results in the runtime dispatching the following events:
     ///
     /// - `pointerover`
-    /// - `mouseover`
     /// - `pointerenter`
-    /// - `mouseenter`
     /// - `pointerdown`
-    /// - `mousedown`
     /// - `pointerup`
-    /// - `mouseup`
     /// - `click`
     ///
     /// These are invoked at the next opportunity; see
     /// [`DocumentTester::crate`](crate::DocumentTester::pump).
     pub fn tap(&self) -> crate::Result<()> {
-        let event = self.create_pointer_event();
+        let event = self.create_pointer_event(
+            BlitzPointerId::Finger(0),
+            MouseEventButtons::from(MouseEventButton::Main),
+        );
         let mut document = self.document.borrow_mut();
         document.handle_ui_event(blitz_traits::events::UiEvent::PointerDown(event.clone()));
         document.handle_ui_event(blitz_traits::events::UiEvent::PointerUp(event));
@@ -104,7 +103,7 @@ impl ResolvedElement {
     /// This causes the `pointerenter` event to be dispatched on the element. The runtime will
     /// then invoke the `onpointerenter` event handler on the next opportunity, if present.
     pub fn hover(&self) -> crate::Result<()> {
-        let event = self.create_pointer_event();
+        let event = self.create_pointer_event(BlitzPointerId::Mouse, MouseEventButtons::empty());
         let mut document = self.document.borrow_mut();
         document.handle_ui_event(blitz_traits::events::UiEvent::PointerMove(event));
         DocumentTester::resolve_effects_and_styles(document, self.now);
@@ -298,7 +297,11 @@ impl ResolvedElement {
         Some(focus_node.outer_html_pretty())
     }
 
-    fn create_pointer_event(&self) -> BlitzPointerEvent {
+    fn create_pointer_event(
+        &self,
+        id: BlitzPointerId,
+        buttons: MouseEventButtons,
+    ) -> BlitzPointerEvent {
         let document = self.document.borrow();
         let inner = document.inner();
         let node = self.node_id.resolve(&inner);
@@ -314,7 +317,7 @@ impl ResolvedElement {
         let page_position = node.absolute_position(centre_offset.x, centre_offset.y);
 
         BlitzPointerEvent {
-            id: BlitzPointerId::Mouse,
+            id,
             is_primary: true,
             coords: PointerCoords {
                 page_x: page_position.x,
@@ -328,7 +331,7 @@ impl ResolvedElement {
             },
             mods: Modifiers::empty(),
             button: MouseEventButton::Main,
-            buttons: MouseEventButtons::empty(),
+            buttons,
             details: Default::default(),
             element: centre_offset,
             active_pointers: Default::default(),
@@ -447,13 +450,9 @@ mod tests {
                 div {
                     "data-testid": "element",
                     onpointerover: move |_| events.write().push("pointerover".into()),
-                    onmouseover: move |_| events.write().push("mouseover".into()),
                     onpointerenter: move |_| events.write().push("pointerenter".into()),
-                    onmouseenter: move |_| events.write().push("mouseenter".into()),
                     onpointerdown: move |_| events.write().push("pointerdown".into()),
-                    onmousedown: move |_| events.write().push("mousedown".into()),
                     onpointerup: move |_| events.write().push("pointerup".into()),
-                    onmouseup: move |_| events.write().push("mouseup".into()),
                     onclick: move |_| events.write().push("click".into()),
                     {events.read().join(",")}
                 }
@@ -466,7 +465,7 @@ mod tests {
         tester
             .query(by_testid("element"))
             .expect(inner_html(eq(
-                "pointerover,mouseover,pointerenter,mouseenter,pointerdown,mousedown,pointerup,mouseup,click",
+                "pointerover,pointerenter,pointerdown,pointerup,click",
             )))
             .await
     }

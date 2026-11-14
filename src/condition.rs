@@ -232,13 +232,9 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
     /// including:
     ///
     /// - `pointerover`
-    /// - `mouseover`
     /// - `pointerenter`
-    /// - `mouseenter`
     /// - `pointerdown`
-    /// - `mousedown`
     /// - `pointerup`
-    /// - `mouseup`
     /// - `click`
     ///
     /// The associated event handlers, if present, are then invoked by the runtime.
