@@ -72,6 +72,10 @@ impl ResolvedElement {
         Ok(())
     }
 
+    /// Dispatches an event to simulate the pointer moving over the centre of this element.
+    ///
+    /// This causes the `pointerenter` event to be dispatched on the element. The runtime will
+    /// then invoke the `onpointerenter` event handler on the next opportunity, if present.
     pub fn hover(&self) -> crate::Result<()> {
         let event = {
             let document = self.document.borrow();
