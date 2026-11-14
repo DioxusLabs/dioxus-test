@@ -31,8 +31,10 @@ impl ResolvedElement {
     ///
     /// The exact location of the click is unspecified.
     ///
-    /// If the element has an `onclick` handler, it will be invoked once
-    /// [crate::DocumentTester::pump] is called.
+    /// The framework then invokes the `onclick` handler on the next opportunity (see
+    /// [`DocumentTester::crate`](crate::DocumentTester::pump)), if present. The other events
+    /// associated with dispatching a click event, including `pointerdown` and `pointerup` are _not_
+    /// dispatched. To dispatch all such events, use [`tap()`][ResolvedElement::tap].
     pub fn click(&self) -> crate::Result<()> {
         let guard = self.document.borrow();
         let event = Event::new(
@@ -44,6 +46,31 @@ impl ResolvedElement {
         );
         drop(guard);
         self.send_event("click", event)
+    }
+
+    /// Dispatches the events associated with tapping the centre of the element.
+    ///
+    /// This results in the runtime dispatching the following events:
+    ///
+    /// - `pointerover`
+    /// - `mouseover`
+    /// - `pointerenter`
+    /// - `mouseenter`
+    /// - `pointerdown`
+    /// - `mousedown`
+    /// - `pointerup`
+    /// - `mouseup`
+    /// - `click`
+    ///
+    /// These are invoked at the next opportunity; see
+    /// [`DocumentTester::crate`](crate::DocumentTester::pump).
+    pub fn tap(&self) -> crate::Result<()> {
+        let event = self.create_pointer_event();
+        let mut document = self.document.borrow_mut();
+        document.handle_ui_event(blitz_traits::events::UiEvent::PointerDown(event.clone()));
+        document.handle_ui_event(blitz_traits::events::UiEvent::PointerUp(event));
+        DocumentTester::resolve_effects_and_styles(document, self.now);
+        Ok(())
     }
 
     /// Dispatches an `input` event on this element with the given `text`.
@@ -77,12 +104,7 @@ impl ResolvedElement {
     /// This causes the `pointerenter` event to be dispatched on the element. The runtime will
     /// then invoke the `onpointerenter` event handler on the next opportunity, if present.
     pub fn hover(&self) -> crate::Result<()> {
-        let event = {
-            let document = self.document.borrow();
-            let inner = document.inner();
-            let node = self.node_id.resolve(&inner);
-            synthetic_pointer_event_data(node)
-        };
+        let event = self.create_pointer_event();
         let mut document = self.document.borrow_mut();
         document.handle_ui_event(blitz_traits::events::UiEvent::PointerMove(event));
         DocumentTester::resolve_effects_and_styles(document, self.now);
@@ -275,6 +297,43 @@ impl ResolvedElement {
         let focus_node = base_document.get_node(focus_node_id)?;
         Some(focus_node.outer_html_pretty())
     }
+
+    fn create_pointer_event(&self) -> BlitzPointerEvent {
+        let document = self.document.borrow();
+        let inner = document.inner();
+        let node = self.node_id.resolve(&inner);
+        let final_layout = node.final_layout();
+        let centre_offset = Point {
+            x: final_layout.size.width / 2.0,
+            y: final_layout.size.height / 2.0,
+        };
+        let screen_position = Point {
+            x: final_layout.location.x + centre_offset.x,
+            y: final_layout.location.y + centre_offset.y,
+        };
+        let page_position = node.absolute_position(centre_offset.x, centre_offset.y);
+
+        BlitzPointerEvent {
+            id: BlitzPointerId::Mouse,
+            is_primary: true,
+            coords: PointerCoords {
+                page_x: page_position.x,
+                page_y: page_position.y,
+
+                // TODO: should these be different?
+                screen_x: screen_position.x,
+                screen_y: screen_position.y,
+                client_x: screen_position.x,
+                client_y: screen_position.y,
+            },
+            mods: Modifiers::empty(),
+            button: MouseEventButton::Main,
+            buttons: MouseEventButtons::empty(),
+            details: Default::default(),
+            element: centre_offset,
+            active_pointers: Default::default(),
+        }
+    }
 }
 
 impl std::fmt::Debug for ResolvedElement {
@@ -370,36 +429,45 @@ fn get_element_id(guard: &impl Deref<Target = BaseDocument>, node_id: NodeId) ->
     Some(ElementId::from_raw(attr.value.parse::<usize>().ok()?))
 }
 
-fn synthetic_pointer_event_data(node: &Node) -> BlitzPointerEvent {
-    let final_layout = node.final_layout();
-    let centre_offset = Point {
-        x: final_layout.size.width / 2.0,
-        y: final_layout.size.height / 2.0,
+#[cfg(test)]
+mod tests {
+    use crate::{
+        Result, by_testid,
+        matchers::{eq, inner_html},
+        render,
     };
-    let screen_position = Point {
-        x: final_layout.location.x + centre_offset.x,
-        y: final_layout.location.y + centre_offset.y,
-    };
-    let page_position = node.absolute_position(centre_offset.x, centre_offset.y);
+    use dioxus::prelude::*;
 
-    BlitzPointerEvent {
-        id: BlitzPointerId::Mouse,
-        is_primary: true,
-        coords: PointerCoords {
-            page_x: page_position.x,
-            page_y: page_position.y,
+    #[tokio::test]
+    async fn tap_invokes_each_event_handler() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut events = use_signal(Vec::<String>::new);
+            rsx! {
+                div {
+                    "data-testid": "element",
+                    onpointerover: move |_| events.write().push("pointerover".into()),
+                    onmouseover: move |_| events.write().push("mouseover".into()),
+                    onpointerenter: move |_| events.write().push("pointerenter".into()),
+                    onmouseenter: move |_| events.write().push("mouseenter".into()),
+                    onpointerdown: move |_| events.write().push("pointerdown".into()),
+                    onmousedown: move |_| events.write().push("mousedown".into()),
+                    onpointerup: move |_| events.write().push("pointerup".into()),
+                    onmouseup: move |_| events.write().push("mouseup".into()),
+                    onclick: move |_| events.write().push("click".into()),
+                    {events.read().join(",")}
+                }
+            }
+        }
+        let tester = render(MyComponent);
 
-            // TODO: should these be different?
-            screen_x: screen_position.x,
-            screen_y: screen_position.y,
-            client_x: screen_position.x,
-            client_y: screen_position.y,
-        },
-        mods: Modifiers::empty(),
-        button: MouseEventButton::Main,
-        buttons: MouseEventButtons::empty(),
-        details: Default::default(),
-        element: centre_offset,
-        active_pointers: Default::default(),
+        tester.query(by_testid("element")).tap().await?;
+
+        tester
+            .query(by_testid("element"))
+            .expect(inner_html(eq(
+                "pointerover,mouseover,pointerenter,mouseenter,pointerdown,mousedown,pointerup,mouseup,click",
+            )))
+            .await
     }
 }
