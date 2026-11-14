@@ -2,9 +2,7 @@ use crate::TesterError;
 use accesskit::Role;
 use blitz_dom::{Document as _, SelectorList};
 use dioxus_native_dom::DioxusDocument;
-use smallvec::SmallVec;
 use std::{collections::HashMap, rc::Rc};
-use style::dom_apis::{MayUseInvalidation, QueryAll, QueryFirst, query_selector};
 use test_that::{
     matcher::{Matcher, MatcherResult},
     matchers::{none, some},
@@ -255,19 +253,12 @@ fn get_first_element_with_selector(
     parent: Option<&dyn Query>,
 ) -> Option<blitz_dom::NodeId> {
     let doc_guard = document.inner();
-    let start_node = if let Some(parent) = parent {
-        doc_guard.get_node(parent.get_first_element(document)?)?
+    let scope = if let Some(parent) = parent {
+        parent.get_first_element(document)?
     } else {
-        doc_guard.root_node()
+        doc_guard.root_node().id
     };
-    let mut result = None;
-    query_selector::<&blitz_dom::Node, QueryFirst>(
-        start_node,
-        &selector_list,
-        &mut result,
-        MayUseInvalidation::Yes,
-    );
-    result.map(|node| node.id)
+    doc_guard.query_selector_in_raw(scope, &selector_list)
 }
 
 fn get_all_elements_with_selector(
@@ -276,25 +267,18 @@ fn get_all_elements_with_selector(
     parent: Option<&dyn Query>,
 ) -> Vec<blitz_dom::NodeId> {
     let doc_guard = document.inner();
-    let start_node = if let Some(parent) = parent {
+    let scope = if let Some(parent) = parent {
         let Some(parent_node_id) = parent.get_first_element(document) else {
-            return vec![];
+            return Default::default();
         };
-        let Some(parent_node) = doc_guard.get_node(parent_node_id) else {
-            return vec![];
-        };
-        parent_node
+        parent_node_id
     } else {
-        doc_guard.root_node()
+        doc_guard.root_node().id
     };
-    let mut result = SmallVec::new();
-    query_selector::<&blitz_dom::Node, QueryAll>(
-        start_node,
-        &selector_list,
-        &mut result,
-        MayUseInvalidation::Yes,
-    );
-    result.into_iter().map(|node| node.id).collect()
+    doc_guard
+        .query_selector_all_in_raw(scope, &selector_list)
+        .into_iter()
+        .collect()
 }
 
 fn render_parent_dom(parent: Option<&dyn Query>, document: &DioxusDocument) -> String {
