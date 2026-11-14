@@ -181,13 +181,104 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
         Self { data, query }
     }
 
-    /// Simulates the user clicking on the element this instance represents.
+    /// Dispatches a `click` event to the element to which this query resolves.
+    ///
+    /// ```
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{matchers::{eq, inner_html}, render, by_testid};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut text = use_signal(|| "");
+    ///     rsx! {
+    ///         div {
+    ///             "data-testid": "element",
+    ///             onclick: move |_| {
+    ///                 text.set("Clicked!")
+    ///             },
+    ///             {text}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[tokio::test]
+    /// # */
+    /// async fn input_element_processes_entered_text() {
+    ///     let tester = render(MyComponent);
+    ///     tester.query(by_testid("element")).click().await.unwrap();
+    ///     tester
+    ///         .query(by_testid("element"))
+    ///         .expect(inner_html(eq("Clicked!")))
+    ///         .await
+    ///         .unwrap();
+    /// }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(input_element_processes_entered_text());
+    /// ```
+    ///
+    /// The other events associated with a physical click or tap, such as `pointerdown` and
+    /// `pointerup` are _not_ triggered. To trigger such events, use
+    /// [`tap()`](ElementCondition::tap) instead.
     ///
     /// This runs the event loop until the element appears, if necessary, up to [`MAX_TRIES`] times.
     /// It returns `Err` if the element does not appear.
     pub async fn click(&self) -> Result<(), TesterError> {
         let element = self.clone().into_future().await?;
         element.click()
+    }
+
+    /// Simulates the user tapping or clicking on the element to which query resolves.
+    ///
+    /// This results in the dispatch of the full sequence of events associated with a click or tap,
+    /// including:
+    ///
+    /// - `pointerover`
+    /// - `pointerenter`
+    /// - `pointerdown`
+    /// - `pointerup`
+    /// - `click`
+    ///
+    /// The associated event handlers, if present, are then invoked by the runtime.
+    ///
+    /// ```
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{matchers::{eq, inner_html}, render, by_testid};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut text = use_signal(|| "");
+    ///     rsx! {
+    ///         div {
+    ///             "data-testid": "element",
+    ///             onpointerdown: move |_| {
+    ///                 text.set("Tapped!")
+    ///             },
+    ///             {text}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[tokio::test]
+    /// # */
+    /// async fn input_element_processes_entered_text() {
+    ///     let tester = render(MyComponent);
+    ///     tester.query(by_testid("element")).tap().await.unwrap();
+    ///     tester
+    ///         .query(by_testid("element"))
+    ///         .expect(inner_html(eq("Tapped!")))
+    ///         .await
+    ///         .unwrap();
+    /// }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(input_element_processes_entered_text());
+    /// ```
+    ///
+    /// This runs the event loop until the element appears, if necessary, up to [`MAX_TRIES`] times.
+    /// It returns `Err` if the element does not appear.
+    pub async fn tap(&self) -> Result<(), TesterError>
+    where
+        Q: Clone,
+    {
+        let element = self.clone().into_future().await?;
+        element.tap()
     }
 
     /// Sets the keyboard focus to the element to which this query resolves.
@@ -202,6 +293,49 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
     pub async fn focus(&self) -> crate::Result<()> {
         let element = self.clone().into_future().await?;
         element.focus()
+    }
+
+    /// Simulates the user hovering the mouse cursor over the element this instance represents.
+    ///
+    /// This is then handled by an element with the `onpointerenter` event handler.
+    ///
+    /// ```
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{matchers::{eq, inner_html}, render, by_testid};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut text = use_signal(|| "");
+    ///     rsx! {
+    ///         div {
+    ///             "data-testid": "element",
+    ///             onpointerenter: move |_| {
+    ///                 text.set("Hover!")
+    ///             },
+    ///             {text}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[tokio::test]
+    /// # */
+    /// async fn input_element_processes_entered_text() {
+    ///     let tester = render(MyComponent);
+    ///     tester.query(by_testid("element")).hover().await.unwrap();
+    ///     tester
+    ///         .query(by_testid("element"))
+    ///         .expect(inner_html(eq("Hover!")))
+    ///         .await
+    ///         .unwrap();
+    /// }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(input_element_processes_entered_text());
+    /// ```
+    ///
+    /// This runs the event loop until the element appears, if necessary, up to [`MAX_TRIES`] times.
+    /// It returns `Err` if the element does not appear.
+    pub async fn hover(&self) -> Result<(), TesterError> {
+        let element = self.clone().into_future().await?;
+        element.hover()
     }
 
     /// Inputs the given text on the element to which this query resolves.
@@ -246,15 +380,6 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
     pub async fn input(&self, text: impl Into<String>) -> crate::Result<()> {
         let element = self.clone().into_future().await?;
         element.input(text)
-    }
-
-    /// Synonym for [`ElementCondition::click`].
-    pub async fn tap(&self) -> Result<(), TesterError>
-    where
-        Q: Clone,
-    {
-        self.click().await?;
-        Ok(())
     }
 
     /// Asserts that the given [`Matcher`] matches this element, either immediately or in the

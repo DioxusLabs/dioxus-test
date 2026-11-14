@@ -1,6 +1,9 @@
 use crate::{DocumentTester, TesterError};
-use blitz_dom::{BaseDocument, Document as _, Node, Point};
-use blitz_traits::events::BlitzFocusEvent;
+use blitz_dom::{BaseDocument, Document as _, Node};
+use blitz_traits::events::{
+    BlitzFocusEvent, BlitzPointerEvent, BlitzPointerId, MouseEventButton, MouseEventButtons, Point,
+    PointerCoords,
+};
 use dioxus::core::{ElementId, Event};
 use dioxus_html::{
     Modifiers, PlatformEventData,
@@ -28,8 +31,10 @@ impl ResolvedElement {
     ///
     /// The exact location of the click is unspecified.
     ///
-    /// If the element has an `onclick` handler, it will be invoked once
-    /// [crate::DocumentTester::pump] is called.
+    /// The framework then invokes the `onclick` handler on the next opportunity (see
+    /// [`DocumentTester::crate`](crate::DocumentTester::pump)), if present. The other events
+    /// associated with dispatching a click event, including `pointerdown` and `pointerup` are _not_
+    /// dispatched. To dispatch all such events, use [`tap()`][ResolvedElement::tap].
     pub fn click(&self) -> crate::Result<()> {
         let guard = self.document.borrow();
         let event = Event::new(
@@ -41,6 +46,30 @@ impl ResolvedElement {
         );
         drop(guard);
         self.send_event("click", event)
+    }
+
+    /// Dispatches the events associated with tapping the centre of the element.
+    ///
+    /// This results in the runtime dispatching the following events:
+    ///
+    /// - `pointerover`
+    /// - `pointerenter`
+    /// - `pointerdown`
+    /// - `pointerup`
+    /// - `click`
+    ///
+    /// These are invoked at the next opportunity; see
+    /// [`DocumentTester::crate`](crate::DocumentTester::pump).
+    pub fn tap(&self) -> crate::Result<()> {
+        let event = self.create_pointer_event(
+            BlitzPointerId::Finger(0),
+            MouseEventButtons::from(MouseEventButton::Main),
+        );
+        let mut document = self.document.borrow_mut();
+        document.handle_ui_event(blitz_traits::events::UiEvent::PointerDown(event.clone()));
+        document.handle_ui_event(blitz_traits::events::UiEvent::PointerUp(event));
+        DocumentTester::resolve_effects_and_styles(document, self.now);
+        Ok(())
     }
 
     /// Dispatches an `input` event on this element with the given `text`.
@@ -66,6 +95,18 @@ impl ResolvedElement {
     /// [DocumentTester::key_up][crate::DocumentTester::key_up] will be routed through this element.
     pub fn focus(&self) -> crate::Result<()> {
         change_focus(self.document.borrow_mut(), self.node_id);
+        Ok(())
+    }
+
+    /// Dispatches an event to simulate the pointer moving over the centre of this element.
+    ///
+    /// This causes the `pointerenter` event to be dispatched on the element. The runtime will
+    /// then invoke the `onpointerenter` event handler on the next opportunity, if present.
+    pub fn hover(&self) -> crate::Result<()> {
+        let event = self.create_pointer_event(BlitzPointerId::Mouse, MouseEventButtons::empty());
+        let mut document = self.document.borrow_mut();
+        document.handle_ui_event(blitz_traits::events::UiEvent::PointerMove(event));
+        DocumentTester::resolve_effects_and_styles(document, self.now);
         Ok(())
     }
 
@@ -255,6 +296,47 @@ impl ResolvedElement {
         let focus_node = base_document.get_node(focus_node_id)?;
         Some(focus_node.outer_html_pretty())
     }
+
+    fn create_pointer_event(
+        &self,
+        id: BlitzPointerId,
+        buttons: MouseEventButtons,
+    ) -> BlitzPointerEvent {
+        let document = self.document.borrow();
+        let inner = document.inner();
+        let node = self.node_id.resolve(&inner);
+        let final_layout = node.final_layout();
+        let centre_offset = Point {
+            x: final_layout.size.width / 2.0,
+            y: final_layout.size.height / 2.0,
+        };
+        let screen_position = Point {
+            x: final_layout.location.x + centre_offset.x,
+            y: final_layout.location.y + centre_offset.y,
+        };
+        let page_position = node.absolute_position(centre_offset.x, centre_offset.y);
+
+        BlitzPointerEvent {
+            id,
+            is_primary: true,
+            coords: PointerCoords {
+                page_x: page_position.x,
+                page_y: page_position.y,
+
+                // TODO: should these be different?
+                screen_x: screen_position.x,
+                screen_y: screen_position.y,
+                client_x: screen_position.x,
+                client_y: screen_position.y,
+            },
+            mods: Modifiers::empty(),
+            button: MouseEventButton::Main,
+            buttons,
+            details: Default::default(),
+            element: centre_offset,
+            active_pointers: Default::default(),
+        }
+    }
 }
 
 impl std::fmt::Debug for ResolvedElement {
@@ -348,4 +430,43 @@ fn get_element_id(guard: &impl Deref<Target = BaseDocument>, node_id: NodeId) ->
         .iter()
         .find(|attr| *attr.name.local == *"data-dioxus-id")?;
     Some(ElementId::from_raw(attr.value.parse::<usize>().ok()?))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        Result, by_testid,
+        matchers::{eq, inner_html},
+        render,
+    };
+    use dioxus::prelude::*;
+
+    #[tokio::test]
+    async fn tap_invokes_each_event_handler() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut events = use_signal(Vec::<String>::new);
+            rsx! {
+                div {
+                    "data-testid": "element",
+                    onpointerover: move |_| events.write().push("pointerover".into()),
+                    onpointerenter: move |_| events.write().push("pointerenter".into()),
+                    onpointerdown: move |_| events.write().push("pointerdown".into()),
+                    onpointerup: move |_| events.write().push("pointerup".into()),
+                    onclick: move |_| events.write().push("click".into()),
+                    {events.read().join(",")}
+                }
+            }
+        }
+        let tester = render(MyComponent);
+
+        tester.query(by_testid("element")).tap().await?;
+
+        tester
+            .query(by_testid("element"))
+            .expect(inner_html(eq(
+                "pointerover,pointerenter,pointerdown,pointerup,click",
+            )))
+            .await
+    }
 }
