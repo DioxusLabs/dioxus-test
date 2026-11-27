@@ -1,12 +1,12 @@
 use crate::{
-    condition::{AllElementsCondition, ElementCondition},
+    condition::{AllElementsCondition, ElementCondition, ElementFraction},
     element::{NodeId, ResolvedElement},
     query::{IntoQuery, Query},
 };
 use blitz_dom::Document as _;
 use blitz_traits::events::{BlitzKeyEvent, KeyState, UiEvent};
 use dioxus::core::{Element, VirtualDom};
-use dioxus_html::{Code, Key, Modifiers};
+use dioxus_html::{Code, Key, Modifiers, geometry::euclid::Point2D};
 use dioxus_native_dom::{DioxusDocument, DocumentConfig};
 use std::{
     cell::{Cell, Ref, RefCell, RefMut},
@@ -171,6 +171,7 @@ impl DocumentTester {
             document: self.document.clone(),
             node_id: NodeId::Root,
             now: self.now,
+            action_coords: None,
         }
     }
 
@@ -355,12 +356,17 @@ impl DocumentTester {
         Ok(())
     }
 
-    pub(crate) fn build_resolved_element(&self, id: blitz_dom::NodeId) -> ResolvedElement {
-        ResolvedElement {
-            document: self.document.clone(),
-            node_id: NodeId::Node(id),
-            now: self.now,
-        }
+    pub(crate) fn build_resolved_element(
+        &self,
+        id: blitz_dom::NodeId,
+        action_coords: Option<Point2D<f32, ElementFraction>>,
+    ) -> ResolvedElement {
+        ResolvedElement::new(
+            self.document.clone(),
+            NodeId::Node(id),
+            self.now,
+            action_coords,
+        )
     }
 
     pub(crate) fn document(&self) -> Ref<'_, DioxusDocument> {
