@@ -292,6 +292,166 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
         element.tap()
     }
 
+    /// Simulates the user clicking or pressing but not yet releasing on the element to which this
+    /// resolves.
+    ///
+    /// This results in the dispatch of the full sequence of events associated with a click or tap,
+    /// including:
+    ///
+    /// - `pointerover`
+    /// - `pointerenter`
+    /// - `pointerdown`
+    ///
+    /// The associated event handlers, if present, are then invoked by the runtime.
+    ///
+    /// ```
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{matchers::{eq, inner_html}, render, by_testid};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut text = use_signal(|| "");
+    ///     rsx! {
+    ///         div {
+    ///             "data-testid": "element",
+    ///             onpointerdown: move |_| {
+    ///                 text.set("Pressed!")
+    ///             },
+    ///             {text}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[tokio::test]
+    /// # */
+    /// async fn input_element_processes_entered_text() {
+    ///     let tester = render(MyComponent);
+    ///     tester.query(by_testid("element")).pointer_down().await.unwrap();
+    ///     tester
+    ///         .query(by_testid("element"))
+    ///         .expect(inner_html(eq("Pressed!")))
+    ///         .await
+    ///         .unwrap();
+    /// }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(input_element_processes_entered_text());
+    /// ```
+    ///
+    /// This runs the event loop until the element appears, if necessary, up to [`MAX_TRIES`] times.
+    /// It returns `Err` if the element does not appear.
+    pub async fn pointer_down(&self) -> Result<(), TesterError>
+    where
+        Q: Clone,
+    {
+        let element = self.clone().into_future().await?;
+        element.pointer_down()
+    }
+
+    /// Simulates the user releasing a previous click or press on the element to which this
+    /// resolves.
+    ///
+    /// This dispatches the `pointerup` event to the element. Its associated event handler, if
+    /// present, is then invoked by the runtime.
+    ///
+    /// ```
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{matchers::{eq, inner_html}, render, by_testid};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut text = use_signal(|| "");
+    ///     rsx! {
+    ///         div {
+    ///             "data-testid": "element",
+    ///             onpointerup: move |_| {
+    ///                 text.set("Released!")
+    ///             },
+    ///             {text}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[tokio::test]
+    /// # */
+    /// async fn input_element_processes_entered_text() {
+    ///     let tester = render(MyComponent);
+    ///     tester.query(by_testid("element")).pointer_up().await.unwrap();
+    ///     tester
+    ///         .query(by_testid("element"))
+    ///         .expect(inner_html(eq("Released!")))
+    ///         .await
+    ///         .unwrap();
+    /// }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(input_element_processes_entered_text());
+    /// ```
+    ///
+    /// This runs the event loop until the element appears, if necessary, up to [`MAX_TRIES`] times.
+    /// It returns `Err` if the element does not appear.
+    pub async fn pointer_up(&self) -> Result<(), TesterError>
+    where
+        Q: Clone,
+    {
+        let element = self.clone().into_future().await?;
+        element.pointer_up()
+    }
+
+    /// Simulates the user moving the pointer to the point given by the two parameters.
+    ///
+    /// The two parameters are in a coordinate system which places (0.0, 0.0) at the upper left of
+    /// the element and (1.0, 1.0) at the lower right of the element. So, for example, (0.5, 0.5) is
+    /// the centre and (0.1, 0.9) is near the lower left corner of the element.
+    ///
+    /// This dispatches the `pointermove` event to the element. Its associated event handler, if
+    /// present, is then invoked by the runtime.
+    ///
+    /// ```
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{matchers::{eq, inner_html, starts_with}, render, by_testid};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     let mut text = use_signal(|| String::new());
+    ///     rsx! {
+    ///         div {
+    ///             "data-testid": "element",
+    ///             onpointermove: move |e| {
+    ///                 let destination = e.client_coordinates();
+    ///                 text.set(format!("Moved to ({}, {})", destination.x, destination.y))
+    ///             },
+    ///             {text}
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[tokio::test]
+    /// # */
+    /// async fn input_element_processes_entered_text() {
+    ///     let tester = render(MyComponent);
+    ///     let element = tester.query(by_testid("element"));
+    ///     element.pointer_down().await.unwrap();
+    ///     element.move_pointer_to(0.9, 0.1).await.unwrap();
+    ///     tester
+    ///         .query(by_testid("element"))
+    ///         .expect(inner_html(starts_with("Moved to")))
+    ///         .await
+    ///         .unwrap();
+    /// }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(input_element_processes_entered_text());
+    /// ```
+    ///
+    /// This runs the event loop until the element appears, if necessary, up to [`MAX_TRIES`] times.
+    /// It returns `Err` if the element does not appear.
+    pub async fn move_pointer_to(
+        &self,
+        x_destination: f32,
+        y_destination: f32,
+    ) -> Result<(), TesterError>
+    where
+        Q: Clone,
+    {
+        let element = self.clone().into_future().await?;
+        element.move_pointer_to(element.coordinates_of(x_destination, y_destination))
+    }
+
     /// Sets the keyboard focus to the element to which this query resolves.
     ///
     /// This means that keyboard focus events triggered through

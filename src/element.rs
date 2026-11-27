@@ -91,6 +91,60 @@ impl ResolvedElement {
         Ok(())
     }
 
+    /// Dispatches a pointer down event on the element.
+    ///
+    /// This results in the runtime dispatching the following events:
+    ///
+    /// - `pointerover`
+    /// - `pointerenter`
+    /// - `pointerdown`
+    ///
+    /// These are invoked at the next opportunity; see
+    /// [`DocumentTester::crate`](crate::DocumentTester::pump).
+    pub fn pointer_down(&self) -> crate::Result<()> {
+        let event = self.create_pointer_event(
+            BlitzPointerId::finger(0),
+            MouseEventButtons::from(MouseEventButton::Main),
+        );
+        let mut document = self.document.borrow_mut();
+        document.handle_ui_event(blitz_traits::events::UiEvent::PointerDown(event.clone()));
+        DocumentTester::resolve_effects_and_styles(document, self.now);
+        Ok(())
+    }
+
+    /// Dispatches a pointer up event on the element.
+    ///
+    /// These are invoked at the next opportunity; see
+    /// [`DocumentTester::crate`](crate::DocumentTester::pump).
+    pub fn pointer_up(&self) -> crate::Result<()> {
+        let event = self.create_pointer_event(
+            BlitzPointerId::finger(0),
+            MouseEventButtons::from(MouseEventButton::Main),
+        );
+        let mut document = self.document.borrow_mut();
+        document.handle_ui_event(blitz_traits::events::UiEvent::PointerUp(event));
+        DocumentTester::resolve_effects_and_styles(document, self.now);
+        Ok(())
+    }
+
+    /// Dispatches a pointer move event on the element.
+    ///
+    /// The event moves the pointer to the coordinates given by `destination`.
+    ///
+    /// These are invoked at the next opportunity; see
+    /// [`DocumentTester::crate`](crate::DocumentTester::pump).
+    pub fn move_pointer_to(&self, destination: Coordinates) -> crate::Result<()> {
+        let event = self.create_pointer_event_at(
+            BlitzPointerId::finger(0),
+            MouseEventButtons::from(MouseEventButton::Main),
+            destination,
+        );
+        let mut document = self.document.borrow_mut();
+        document.handle_ui_event(blitz_traits::events::UiEvent::PointerMove(event));
+        DocumentTester::resolve_effects_and_styles(document, self.now);
+        Ok(())
+    }
+
     /// Dispatches an `input` event on this element with the given `text`.
     ///
     /// If this element accepts keyboard input (e.g., if it is an `<input>` or `<textarea>`
@@ -188,27 +242,40 @@ impl ResolvedElement {
 
     /// Returns the calculated [Coordinates] of the centre of this element.
     pub fn center(&self) -> Coordinates {
-        Self::to_coordinates(self.document.clone(), self.node_id, Point2D::new(0.5, 0.5))
+        self.coordinates_of(0.5, 0.5)
     }
 
     /// Returns the calculated [Coordinates] of the upper-left corner of this element.
     pub fn upper_left(&self) -> Coordinates {
-        Self::to_coordinates(self.document.clone(), self.node_id, Point2D::new(0.0, 0.0))
+        self.coordinates_of(0.0, 0.0)
     }
 
     /// Returns the calculated [Coordinates] of the upper-right corner of this element.
     pub fn upper_right(&self) -> Coordinates {
-        Self::to_coordinates(self.document.clone(), self.node_id, Point2D::new(1.0, 0.0))
+        self.coordinates_of(1.0, 0.0)
     }
 
     /// Returns the calculated [Coordinates] of the lower-left corner of this element.
     pub fn lower_left(&self) -> Coordinates {
-        Self::to_coordinates(self.document.clone(), self.node_id, Point2D::new(0.0, 1.0))
+        self.coordinates_of(0.0, 1.0)
     }
 
     /// Returns the calculated [Coordinates] of the lower-right corner of this element.
     pub fn lower_right(&self) -> Coordinates {
-        Self::to_coordinates(self.document.clone(), self.node_id, Point2D::new(1.0, 1.0))
+        self.coordinates_of(1.0, 1.0)
+    }
+
+    /// Returns the calculated [Coordinates] of the position given by `x_relative, y_relative`.
+    ///
+    /// The two parameters are in a coordinate system which places (0.0, 0.0) at the upper left of
+    /// the element and (1.0, 1.0) at the lower right of the element. So, for example, (0.5, 0.5) is
+    /// the centre and (0.1, 0.9) is near the lower left corner of the element.
+    pub fn coordinates_of(&self, x_relative: f32, y_relative: f32) -> Coordinates {
+        Self::to_coordinates(
+            self.document.clone(),
+            self.node_id,
+            Point2D::new(x_relative, y_relative),
+        )
     }
 
     fn to_coordinates(
@@ -283,7 +350,15 @@ impl ResolvedElement {
         buttons: MouseEventButtons,
     ) -> BlitzPointerEvent {
         let coords = self.action_coords();
+        self.create_pointer_event_at(id, buttons, coords)
+    }
 
+    fn create_pointer_event_at(
+        &self,
+        id: BlitzPointerId,
+        buttons: MouseEventButtons,
+        coords: Coordinates,
+    ) -> BlitzPointerEvent {
         BlitzPointerEvent {
             id,
             is_primary: true,
