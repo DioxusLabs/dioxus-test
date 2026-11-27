@@ -62,7 +62,7 @@ impl ResolvedElement {
     /// [`DocumentTester::crate`](crate::DocumentTester::pump).
     pub fn tap(&self) -> crate::Result<()> {
         let event = self.create_pointer_event(
-            BlitzPointerId::Finger(0),
+            BlitzPointerId::finger(0),
             MouseEventButtons::from(MouseEventButton::Main),
         );
         let mut document = self.document.borrow_mut();
@@ -103,7 +103,7 @@ impl ResolvedElement {
     /// This causes the `pointerenter` event to be dispatched on the element. The runtime will
     /// then invoke the `onpointerenter` event handler on the next opportunity, if present.
     pub fn hover(&self) -> crate::Result<()> {
-        let event = self.create_pointer_event(BlitzPointerId::Mouse, MouseEventButtons::empty());
+        let event = self.create_pointer_event(BlitzPointerId::mouse(), MouseEventButtons::empty());
         let mut document = self.document.borrow_mut();
         document.handle_ui_event(blitz_traits::events::UiEvent::PointerMove(event));
         DocumentTester::resolve_effects_and_styles(document, self.now);
