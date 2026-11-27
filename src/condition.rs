@@ -3,6 +3,7 @@ use crate::{
     element::ResolvedElement,
     query::{IntoQuery, LastElementQuery, NthElementQuery, ParentableQuery, Query},
 };
+use dioxus_html::geometry::euclid::Point2D;
 use std::{marker::PhantomData, ops::ControlFlow, pin::Pin};
 use test_that::{description::Description, matcher::MatcherResult, prelude::Matcher};
 
@@ -165,20 +166,30 @@ pub trait Waitable: EventLoopDriver {
 pub struct ElementCondition<'vdom, Q> {
     data: &'vdom DocumentTester,
     query: Q,
+    action_position: Option<Point2D<f32, ElementFraction>>,
 }
+
+/// A space where the upper left corner of the resolved element is at (0.0, 0.0) and the lower right
+/// corner is at (1.0, 1.0).
+pub(crate) struct ElementFraction;
 
 impl<'vdom, Q: Clone> Clone for ElementCondition<'vdom, Q> {
     fn clone(&self) -> Self {
         Self {
             data: self.data,
             query: self.query.clone(),
+            action_position: self.action_position,
         }
     }
 }
 
 impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
     pub(crate) fn new(data: &'vdom DocumentTester, query: Q) -> Self {
-        Self { data, query }
+        Self {
+            data,
+            query,
+            action_position: None,
+        }
     }
 
     /// Dispatches a `click` event to the element to which this query resolves.
@@ -655,7 +666,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
     pub fn immediately(&self) -> Result<ResolvedElement, TesterError> {
         match self.check() {
             ControlFlow::Continue(_) => Err(self.describe_failure()),
-            ControlFlow::Break(b) => Ok(self.data.build_resolved_element(b)),
+            ControlFlow::Break(b) => Ok(self.data.build_resolved_element(b, self.action_position)),
         }
     }
 
@@ -702,6 +713,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
         ElementCondition {
             data: self.data,
             query,
+            action_position: self.action_position,
         }
     }
 
@@ -759,6 +771,50 @@ impl<'vdom, Q: Query + Clone + 'vdom> ElementCondition<'vdom, Q> {
         self.query
             .describe_unexpected_element(&self.data.document())
     }
+
+    /// Returns a new [ElementCondition] on which any pointer action (tap, click, pointer down
+    /// etc.) will take place at the given coordinates relative to the element.
+    ///
+    /// By default, pointer actions take place at the centre of the element.
+    ///
+    /// The coordinate space puts the upper left of the resolved element at (0.0, 0.0) and the
+    /// lower right at (1.0, 1.0). For example, the following places the tap near the upper right
+    /// corner of the element:
+    ///
+    /// ```rust
+    /// # use dioxus::prelude::*;
+    /// # use dioxus_test::{matchers::{eq, inner_html}, render, by_testid};
+    /// #[component]
+    /// fn MyComponent() -> Element {
+    ///     rsx! {
+    ///         div {
+    ///             "data-testid": "element",
+    ///             onpointerdown: move |_| {
+    ///                 println!("Tapped!")
+    ///             },
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// # /* Make sure this also compiles as a doctest.
+    /// #[tokio::test]
+    /// # */
+    /// # async fn run_test() {
+    /// let tester = render(MyComponent);
+    /// tester.query(by_testid("element"))
+    ///     .at(0.9, 0.1)
+    ///     .tap()
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// # tokio::runtime::Builder::new_current_thread().enable_time().build().unwrap().block_on(run_test());
+    /// ```
+    pub fn at(self, x: f32, y: f32) -> Self {
+        Self {
+            action_position: Some(Point2D::new(x, y)),
+            ..self
+        }
+    }
 }
 
 impl<'vdom, Q: Query> EventLoopDriver for ElementCondition<'vdom, Q> {
@@ -790,10 +846,12 @@ where
     fn matches(&self, matcher: &M) -> ControlFlow<()> {
         match Waitable::check(self) {
             ControlFlow::Continue(_) => ControlFlow::Continue(()),
-            ControlFlow::Break(n) => match matcher.matches(&self.data.build_resolved_element(n)) {
-                MatcherResult::Match => ControlFlow::Break(()),
-                MatcherResult::NoMatch => ControlFlow::Continue(()),
-            },
+            ControlFlow::Break(n) => {
+                match matcher.matches(&self.data.build_resolved_element(n, self.action_position)) {
+                    MatcherResult::Match => ControlFlow::Break(()),
+                    MatcherResult::NoMatch => ControlFlow::Continue(()),
+                }
+            }
         }
     }
 
@@ -801,7 +859,7 @@ where
         match Waitable::check(self) {
             ControlFlow::Continue(_) => self.query.describe_failure(&self.data.document()),
             ControlFlow::Break(n) => {
-                let resolved = self.data.build_resolved_element(n);
+                let resolved = self.data.build_resolved_element(n, self.action_position);
                 TesterError::AssertionFailure {
                     query: self.query.to_string(),
                     actual_outer_html: Description::new()
@@ -822,7 +880,9 @@ impl<'vdom, Q: Query + 'vdom> IntoFuture for ElementCondition<'vdom, Q> {
     fn into_future(mut self) -> Self::IntoFuture {
         Box::pin(async move {
             let node_id = self.to_waitable_future().await?;
-            Ok(self.data.build_resolved_element(node_id))
+            Ok(self
+                .data
+                .build_resolved_element(node_id, self.action_position))
         })
     }
 }
@@ -1005,7 +1065,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> AllElementsCondition<'vdom, Q> {
         let node_ids = self.query.get_all_elements(&self.data.document());
         node_ids
             .into_iter()
-            .map(|node_id| self.data.build_resolved_element(node_id))
+            .map(|node_id| self.data.build_resolved_element(node_id, None))
             .collect()
     }
 
@@ -1044,6 +1104,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> AllElementsCondition<'vdom, Q> {
         ElementCondition {
             data: self.data,
             query: NthElementQuery::new(self.query.clone(), n),
+            action_position: None,
         }
     }
 
@@ -1082,6 +1143,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> AllElementsCondition<'vdom, Q> {
         ElementCondition {
             data: self.data,
             query: NthElementQuery::new(self.query.clone(), 0),
+            action_position: None,
         }
     }
 
@@ -1118,6 +1180,7 @@ impl<'vdom, Q: Query + Clone + 'vdom> AllElementsCondition<'vdom, Q> {
         ElementCondition {
             data: self.data,
             query: LastElementQuery::new(self.query.clone()),
+            action_position: None,
         }
     }
 }

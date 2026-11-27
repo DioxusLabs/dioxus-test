@@ -1,7 +1,7 @@
-use crate::{DocumentTester, TesterError};
-use blitz_dom::{BaseDocument, Document as _, Node};
+use crate::{DocumentTester, TesterError, condition::ElementFraction};
+use blitz_dom::{BaseDocument, Document as _, Node, Point};
 use blitz_traits::events::{
-    BlitzFocusEvent, BlitzPointerEvent, BlitzPointerId, MouseEventButton, MouseEventButtons, Point,
+    BlitzFocusEvent, BlitzPointerEvent, BlitzPointerId, MouseEventButton, MouseEventButtons,
     PointerCoords,
 };
 use dioxus::core::{ElementId, Event};
@@ -24,9 +24,28 @@ pub struct ResolvedElement {
     pub(crate) document: Rc<RefCell<DioxusDocument>>,
     pub(crate) node_id: NodeId,
     pub(crate) now: f64,
+    /// The coordinates at which a pointer action will take place on this element. If not present,
+    /// then these are taken to be the centre of the element.
+    pub(crate) action_coords: Option<Coordinates>,
 }
 
 impl ResolvedElement {
+    pub(crate) fn new(
+        document: Rc<RefCell<DioxusDocument>>,
+        node_id: NodeId,
+        now: f64,
+        action_position: Option<Point2D<f32, ElementFraction>>,
+    ) -> Self {
+        let action_coords = action_position
+            .map(|position| Self::to_coordinates(document.clone(), node_id, position));
+        Self {
+            document,
+            node_id,
+            now,
+            action_coords,
+        }
+    }
+
     /// Dispatches a `click` event on this element.
     ///
     /// The exact location of the click is unspecified.
@@ -169,85 +188,46 @@ impl ResolvedElement {
 
     /// Returns the calculated [Coordinates] of the centre of this element.
     pub fn center(&self) -> Coordinates {
-        let upper_left = self.upper_left();
-        let lower_right = self.lower_right();
-        Coordinates::new(
-            upper_left.screen().lerp(lower_right.screen(), 0.5),
-            upper_left.client().lerp(lower_right.client(), 0.5),
-            upper_left.element().lerp(lower_right.element(), 0.5),
-            upper_left.page().lerp(lower_right.page(), 0.5),
-        )
+        Self::to_coordinates(self.document.clone(), self.node_id, Point2D::new(0.5, 0.5))
     }
 
     /// Returns the calculated [Coordinates] of the upper-left corner of this element.
     pub fn upper_left(&self) -> Coordinates {
-        let guard = self.document.borrow();
-        let document = guard.inner();
-        let node = self.node_id.resolve(&document);
-        let upper_left = Point {
-            x: node.final_layout().location.x,
-            y: node.final_layout().location.y,
-        };
-        Coordinates::new(
-            Self::to_point2d(upper_left),
-            Self::to_point2d(upper_left),
-            Self::to_point2d(upper_left),
-            Self::to_point2d(upper_left),
-        )
+        Self::to_coordinates(self.document.clone(), self.node_id, Point2D::new(0.0, 0.0))
     }
 
     /// Returns the calculated [Coordinates] of the upper-right corner of this element.
     pub fn upper_right(&self) -> Coordinates {
-        let guard = self.document.borrow();
-        let document = guard.inner();
-        let node = self.node_id.resolve(&document);
-        let mut upper_right = Point {
-            x: node.final_layout().location.x,
-            y: node.final_layout().location.y,
-        };
-        upper_right.x += node.final_layout().content_box_width();
-        Coordinates::new(
-            Self::to_point2d(upper_right),
-            Self::to_point2d(upper_right),
-            Self::to_point2d(upper_right),
-            Self::to_point2d(upper_right),
-        )
+        Self::to_coordinates(self.document.clone(), self.node_id, Point2D::new(1.0, 0.0))
     }
 
     /// Returns the calculated [Coordinates] of the lower-left corner of this element.
     pub fn lower_left(&self) -> Coordinates {
-        let guard = self.document.borrow();
-        let document = guard.inner();
-        let node = self.node_id.resolve(&document);
-        let mut lower_left = Point {
-            x: node.final_layout().location.x,
-            y: node.final_layout().location.y,
-        };
-        lower_left.y += node.final_layout().content_box_height();
-        Coordinates::new(
-            Self::to_point2d(lower_left),
-            Self::to_point2d(lower_left),
-            Self::to_point2d(lower_left),
-            Self::to_point2d(lower_left),
-        )
+        Self::to_coordinates(self.document.clone(), self.node_id, Point2D::new(0.0, 1.0))
     }
 
     /// Returns the calculated [Coordinates] of the lower-right corner of this element.
     pub fn lower_right(&self) -> Coordinates {
-        let guard = self.document.borrow();
+        Self::to_coordinates(self.document.clone(), self.node_id, Point2D::new(1.0, 1.0))
+    }
+
+    fn to_coordinates(
+        document: Rc<RefCell<DioxusDocument>>,
+        node_id: NodeId,
+        position: Point2D<f32, ElementFraction>,
+    ) -> Coordinates {
+        let guard = document.borrow();
         let document = guard.inner();
-        let node = self.node_id.resolve(&document);
-        let mut lower_right = Point {
-            x: node.final_layout().location.x,
-            y: node.final_layout().location.y,
-        };
-        lower_right.x += node.final_layout().content_box_width();
-        lower_right.y += node.final_layout().content_box_height();
+        let node = node_id.resolve(&document);
+        let resolved_point = node.absolute_position(
+            position.x * node.final_layout().content_box_width(),
+            position.y * node.final_layout().content_box_height(),
+        );
         Coordinates::new(
-            Self::to_point2d(lower_right),
-            Self::to_point2d(lower_right),
-            Self::to_point2d(lower_right),
-            Self::to_point2d(lower_right),
+            Self::to_point2d(resolved_point),
+            Self::to_point2d(resolved_point),
+            Self::to_point2d(resolved_point),
+            Self::to_point2d(resolved_point),
         )
     }
 
@@ -302,39 +282,50 @@ impl ResolvedElement {
         id: BlitzPointerId,
         buttons: MouseEventButtons,
     ) -> BlitzPointerEvent {
-        let document = self.document.borrow();
-        let inner = document.inner();
-        let node = self.node_id.resolve(&inner);
-        let final_layout = node.final_layout();
-        let centre_offset = Point {
-            x: final_layout.size.width / 2.0,
-            y: final_layout.size.height / 2.0,
-        };
-        let screen_position = Point {
-            x: final_layout.location.x + centre_offset.x,
-            y: final_layout.location.y + centre_offset.y,
-        };
-        let page_position = node.absolute_position(centre_offset.x, centre_offset.y);
+        let coords = self.action_coords();
 
         BlitzPointerEvent {
             id,
             is_primary: true,
             coords: PointerCoords {
-                page_x: page_position.x,
-                page_y: page_position.y,
-
-                // TODO: should these be different?
-                screen_x: screen_position.x,
-                screen_y: screen_position.y,
-                client_x: screen_position.x,
-                client_y: screen_position.y,
+                page_x: coords.page().x as f32,
+                page_y: coords.page().y as f32,
+                screen_x: coords.screen().x as f32,
+                screen_y: coords.screen().y as f32,
+                client_x: coords.client().x as f32,
+                client_y: coords.client().y as f32,
             },
             mods: Modifiers::empty(),
             button: MouseEventButton::Main,
             buttons,
             details: Default::default(),
-            element: centre_offset,
+            element: blitz_traits::events::Point {
+                x: coords.element().x as f32,
+                y: coords.element().y as f32,
+            },
             active_pointers: Default::default(),
+        }
+    }
+
+    fn action_coords(&self) -> Coordinates {
+        if let Some(action_coords) = &self.action_coords {
+            // Coordinates does not implement Clone, so we clone by hand.
+            Coordinates::new(
+                action_coords.screen(),
+                action_coords.client(),
+                action_coords.element(),
+                action_coords.page(),
+            )
+        } else {
+            self.center()
+        }
+    }
+
+    /// Specifies that any pointer action on this element should occur at the given [Coordinates].
+    pub fn at(self, coordinates: Coordinates) -> Self {
+        Self {
+            action_coords: Some(coordinates),
+            ..self
         }
     }
 }
@@ -467,6 +458,64 @@ mod tests {
             .expect(inner_html(eq(
                 "pointerover,pointerenter,pointerdown,pointerup,click",
             )))
+            .await
+    }
+
+    #[tokio::test]
+    async fn tap_hits_element_offset_from_the_document_origin() -> Result<()> {
+        // Regression test: pointer actions must hit-test at the element's absolute page
+        // position (`Node::absolute_position`), not at its containing-block-relative
+        // `final_layout().location`. The spacer pushes the target away from the document
+        // origin (body margin), so the two coordinates differ; the 1px-tall target makes
+        // the relative coordinates miss it entirely, so no handler fires.
+        #[component]
+        fn MyComponent() -> Element {
+            let mut tapped = use_signal(|| false);
+            rsx! {
+                div { style: "height: 20px; width: 20px;" }
+                div {
+                    "data-testid": "target",
+                    style: "height: 1px; width: 100px;",
+                    onpointerdown: move |_| tapped.set(true),
+                    {if tapped() { "tapped" } else { "" }}
+                }
+            }
+        }
+        let tester = render(MyComponent);
+
+        tester.query(by_testid("target")).tap().await?;
+
+        tester
+            .query(by_testid("target"))
+            .expect(inner_html(eq("tapped")))
+            .await
+    }
+
+    #[tokio::test]
+    async fn tap_at_dispatches_pointer_event_at_the_given_fraction_of_the_element() -> Result<()> {
+        #[component]
+        fn MyComponent() -> Element {
+            let mut x = use_signal(|| 0.0f64);
+            rsx! {
+                div {
+                    "data-testid": "target",
+                    style: "width: 200px; height: 20px;",
+                    onpointerdown: move |evt| x.set(evt.client_coordinates().x),
+                }
+                div { "data-testid": "result", {format!("{:.0}", x())} }
+            }
+        }
+        let tester = render(MyComponent);
+        let expected_x = {
+            let target = tester.query(by_testid("target")).immediately()?;
+            target.upper_left().client().x + 0.9 * target.size().0 as f64
+        };
+
+        tester.query(by_testid("target")).at(0.9, 0.5).tap().await?;
+
+        tester
+            .query(by_testid("result"))
+            .expect(inner_html(eq(format!("{:.0}", expected_x))))
             .await
     }
 }
